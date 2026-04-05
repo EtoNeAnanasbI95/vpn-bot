@@ -1,0 +1,108 @@
+package sqlite
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"time"
+
+	"github.com/EtoNeAnanasbI95/vpn-bot/internal/domain"
+	"github.com/EtoNeAnanasbI95/vpn-bot/internal/repository"
+)
+
+type connPayRepo struct{ db *sql.DB }
+
+func NewConnectionPaymentRepository(db *sql.DB) repository.ConnectionPaymentRepository {
+	return &connPayRepo{db: db}
+}
+
+func (r *connPayRepo) Create(ctx context.Context, p *domain.ConnPayment) error {
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO connection_payments (uuid, user_id, admin_id, status, created_at)
+		VALUES (?, ?, ?, ?, datetime('now'))
+		ON CONFLICT(uuid) DO NOTHING
+	`, p.UUID, p.UserID, p.AdminID, string(p.Status))
+	return err
+}
+
+func (r *connPayRepo) GetByUUID(ctx context.Context, uuid string) (*domain.ConnPayment, error) {
+	row := r.db.QueryRowContext(ctx, `
+		SELECT uuid, user_id, admin_id, status, created_at
+		FROM connection_payments WHERE uuid = ?`, uuid)
+	return scanConnPay(row)
+}
+
+func (r *connPayRepo) GetAllUnpaid(ctx context.Context) ([]*domain.ConnPayment, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT uuid, user_id, admin_id, status, created_at
+		FROM connection_payments WHERE status = 'unpaid'`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanConnPays(rows)
+}
+
+func (r *connPayRepo) GetOverdue(ctx context.Context, olderThan time.Time) ([]*domain.ConnPayment, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT uuid, user_id, admin_id, status, created_at
+		FROM connection_payments
+		WHERE status = 'unpaid' AND created_at <= ?`,
+		olderThan.UTC().Format("2006-01-02 15:04:05"))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanConnPays(rows)
+}
+
+func (r *connPayRepo) SetStatus(ctx context.Context, uuid string, status domain.ConnPayStatus) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE connection_payments SET status = ? WHERE uuid = ?`, string(status), uuid)
+	return err
+}
+
+func (r *connPayRepo) GetAdminPaymentInfo(ctx context.Context, adminID int64) (string, error) {
+	var info string
+	err := r.db.QueryRowContext(ctx, `SELECT payment_info FROM admin_profiles WHERE admin_id = ?`, adminID).Scan(&info)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	return info, err
+}
+
+func (r *connPayRepo) SetAdminPaymentInfo(ctx context.Context, adminID int64, info string) error {
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO admin_profiles (admin_id, payment_info) VALUES (?, ?)
+		ON CONFLICT(admin_id) DO UPDATE SET payment_info = excluded.payment_info
+	`, adminID, info)
+	return err
+}
+
+func scanConnPay(row *sql.Row) (*domain.ConnPayment, error) {
+	var p domain.ConnPayment
+	var status, createdAt string
+	if err := row.Scan(&p.UUID, &p.UserID, &p.AdminID, &status, &createdAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("connection payment not found")
+		}
+		return nil, err
+	}
+	p.Status = domain.ConnPayStatus(status)
+	p.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+	return &p, nil
+}
+
+func scanConnPays(rows *sql.Rows) ([]*domain.ConnPayment, error) {
+	var out []*domain.ConnPayment
+	for rows.Next() {
+		var p domain.ConnPayment
+		var status, createdAt string
+		if err := rows.Scan(&p.UUID, &p.UserID, &p.AdminID, &status, &createdAt); err != nil {
+			return nil, err
+		}
+		p.Status = domain.ConnPayStatus(status)
+		p.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+		out = append(out, &p)
+	}
+	return out, rows.Err()
+}

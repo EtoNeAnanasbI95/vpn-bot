@@ -1,0 +1,26 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t vpn-bot:${{ github.sha }} .
+
+      - name: Export image to tar
+        run: docker save vpn-bot:${{ github.sha }} | gzip > vpn-bot.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vpn-bot-${{ github.sha }}
+          path: vpn-bot.tar.gz
+          retention-days: 7

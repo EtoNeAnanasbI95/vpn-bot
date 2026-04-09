@@ -11,10 +11,20 @@ type UserRepository interface {
 	// Upsert creates the user if not exists, otherwise updates name fields.
 	Upsert(ctx context.Context, u *domain.User) error
 	GetByID(ctx context.Context, id int64) (*domain.User, error)
+	GetByUsername(ctx context.Context, username string) (*domain.User, error)
 	GetAll(ctx context.Context) ([]*domain.User, error)
 	GetByAdminID(ctx context.Context, adminID int64) ([]*domain.User, error)
 	CountByAdminID(ctx context.Context, adminID int64) (int, error)
 	Delete(ctx context.Context, id int64) error
+	// SetFreeFriend marks or clears the free-friend flag for a user.
+	SetFreeFriend(ctx context.Context, userID int64, isFree bool) error
+	// GetFreeFriends returns all users with is_free_friend = 1.
+	GetFreeFriends(ctx context.Context) ([]*domain.User, error)
+	// SetLastPaidAt updates (or clears) the last payment date for a user.
+	SetLastPaidAt(ctx context.Context, userID int64, paidAt *time.Time) error
+	// GetUsersWithDuePaidReminder returns non-free-friend users whose last_paid_at
+	// was more than one calendar month ago (reminder due).
+	GetUsersWithDuePaidReminder(ctx context.Context) ([]*domain.User, error)
 }
 
 type ConnectionPaymentRepository interface {

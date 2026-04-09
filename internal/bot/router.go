@@ -246,6 +246,26 @@ func (r *Router) handleCallback(ctx context.Context, q *tgbotapi.CallbackQuery) 
 		uid, _ := strconv.ParseInt(parts[1], 10, 64)
 		handler.HandleAdminUserDetail(ctx, r.bot, chatID, q.ID, uid, r.uc)
 
+	case callback.ActionAdmFreeFriendList:
+		handler.HandleAdminFreeFriendList(ctx, r.bot, chatID, q.ID, r.uc)
+
+	case callback.ActionAdmFreeFriendToggle:
+		if len(parts) < 2 {
+			break
+		}
+		uid, _ := strconv.ParseInt(parts[1], 10, 64)
+		handler.HandleAdminFreeFriendToggle(ctx, r.bot, chatID, q.ID, uid, r.uc)
+
+	case callback.ActionAdmPayDateList:
+		handler.HandleAdminPayDateList(ctx, r.bot, chatID, q.ID, r.uc)
+
+	case callback.ActionAdmPayDateUser:
+		if len(parts) < 2 {
+			break
+		}
+		uid, _ := strconv.ParseInt(parts[1], 10, 64)
+		handler.HandleAdminPayDateUser(ctx, r.bot, chatID, q.ID, q.From.ID, uid, r.sessions, r.uc)
+
 	default:
 		r.bot.Request(tgbotapi.NewCallback(q.ID, "")) //nolint:errcheck
 		slog.Debug("unhandled callback", "action", action, "user", q.From.ID)

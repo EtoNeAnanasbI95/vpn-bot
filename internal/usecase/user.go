@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/EtoNeAnanasbI95/vpn-bot/internal/domain"
 	"github.com/EtoNeAnanasbI95/vpn-bot/internal/repository"
@@ -52,6 +53,10 @@ func (uc *userUseCase) GetUser(ctx context.Context, id int64) (*domain.User, err
 	return uc.userRepo.GetByID(ctx, id)
 }
 
+func (uc *userUseCase) GetByUsername(ctx context.Context, username string) (*domain.User, error) {
+	return uc.userRepo.GetByUsername(ctx, username)
+}
+
 func (uc *userUseCase) GetAll(ctx context.Context) ([]*domain.User, error) {
 	return uc.userRepo.GetAll(ctx)
 }
@@ -62,6 +67,22 @@ func (uc *userUseCase) GetByAdmin(ctx context.Context, adminID int64) ([]*domain
 
 func (uc *userUseCase) DeleteUser(ctx context.Context, userID int64) error {
 	return uc.userRepo.Delete(ctx, userID)
+}
+
+func (uc *userUseCase) SetFreeFriend(ctx context.Context, userID int64, isFree bool) error {
+	return uc.userRepo.SetFreeFriend(ctx, userID, isFree)
+}
+
+func (uc *userUseCase) GetFreeFriends(ctx context.Context) ([]*domain.User, error) {
+	return uc.userRepo.GetFreeFriends(ctx)
+}
+
+func (uc *userUseCase) SetLastPaidAt(ctx context.Context, userID int64, paidAt *time.Time) error {
+	return uc.userRepo.SetLastPaidAt(ctx, userID, paidAt)
+}
+
+func (uc *userUseCase) GetUsersWithDueReminder(ctx context.Context) ([]*domain.User, error) {
+	return uc.userRepo.GetUsersWithDuePaidReminder(ctx)
 }
 
 // pickAdmin returns the admin ID with the fewest assigned users.

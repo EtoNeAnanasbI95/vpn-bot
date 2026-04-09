@@ -21,6 +21,10 @@ func AdminPanel() tgbotapi.InlineKeyboardMarkup {
 			tgbotapi.NewInlineKeyboardButtonData("🔗 Подключения", callback.ActionAdmConnUsers),
 		),
 		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("💚 Друзья", callback.ActionAdmFreeFriendList),
+			tgbotapi.NewInlineKeyboardButtonData("📅 Даты оплат", callback.ActionAdmPayDateList),
+		),
+		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("💰 Мои реквизиты", callback.ActionAdmSetPayInfo),
 		),
 	)
@@ -164,4 +168,48 @@ func PayConfirmButton(userID int64) tgbotapi.InlineKeyboardMarkup {
 			tgbotapi.NewInlineKeyboardButtonData("✅ Подтвердить оплату", callback.AdmPayConfirm(userID)),
 		),
 	)
+}
+
+// FreeFriendList builds a keyboard showing all users with their free-friend status.
+// Clicking a user toggles their status.
+func FreeFriendList(users []*domain.User) tgbotapi.InlineKeyboardMarkup {
+	var rows [][]tgbotapi.InlineKeyboardButton
+	for _, u := range users {
+		icon := "❌"
+		if u.IsFreeFriend {
+			icon = "💚"
+		}
+		label := icon + " " + u.DisplayName()
+		if u.Username != "" {
+			label += " (@" + u.Username + ")"
+		}
+		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(label, callback.AdmFreeFriendToggle(u.ID)),
+		))
+	}
+	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("← Назад", callback.ActionAdmMenu),
+	))
+	return tgbotapi.NewInlineKeyboardMarkup(rows...)
+}
+
+// PayDateList builds a keyboard for selecting a user to set their payment date.
+func PayDateList(users []*domain.User) tgbotapi.InlineKeyboardMarkup {
+	var rows [][]tgbotapi.InlineKeyboardButton
+	for _, u := range users {
+		label := u.DisplayName()
+		if u.Username != "" {
+			label += " (@" + u.Username + ")"
+		}
+		if u.LastPaidAt != nil {
+			label += " 📅 " + u.LastPaidAt.Format("02.01.2006")
+		}
+		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(label, callback.AdmPayDateUser(u.ID)),
+		))
+	}
+	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("← Назад", callback.ActionAdmMenu),
+	))
+	return tgbotapi.NewInlineKeyboardMarkup(rows...)
 }

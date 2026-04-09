@@ -12,9 +12,19 @@ type UserUseCase interface {
 	// Returns the user and whether it was newly created.
 	RegisterOrGet(ctx context.Context, tu domain.TelegramUser) (*domain.User, bool, error)
 	GetUser(ctx context.Context, id int64) (*domain.User, error)
+	GetByUsername(ctx context.Context, username string) (*domain.User, error)
 	GetAll(ctx context.Context) ([]*domain.User, error)
 	GetByAdmin(ctx context.Context, adminID int64) ([]*domain.User, error)
 	DeleteUser(ctx context.Context, userID int64) error
+	// SetFreeFriend marks or clears the free-friend flag. Free friends are excluded
+	// from all payment reminders.
+	SetFreeFriend(ctx context.Context, userID int64, isFree bool) error
+	GetFreeFriends(ctx context.Context) ([]*domain.User, error)
+	// SetLastPaidAt records the date a user last paid (nil clears it).
+	// One month after this date, the scheduler sends them a renewal reminder.
+	SetLastPaidAt(ctx context.Context, userID int64, paidAt *time.Time) error
+	// GetUsersWithDueReminder returns users whose last_paid_at was 1+ months ago.
+	GetUsersWithDueReminder(ctx context.Context) ([]*domain.User, error)
 }
 
 type ConnectionUseCase interface {

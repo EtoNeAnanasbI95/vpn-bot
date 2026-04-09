@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	_ "modernc.org/sqlite"
 )
@@ -70,7 +71,29 @@ func Open(dbPath string) (*sql.DB, error) {
 	return db, nil
 }
 
+// columnMigrations are ALTER TABLE statements applied after the initial schema.
+// addColumnIfMissing ignores "duplicate column name" errors so they are idempotent.
+var columnMigrations = []string{
+	`ALTER TABLE users ADD COLUMN is_free_friend INTEGER NOT NULL DEFAULT 0`,
+	`ALTER TABLE users ADD COLUMN last_paid_at DATETIME`,
+}
+
 func Migrate(db *sql.DB) error {
-	_, err := db.Exec(schema)
-	return err
+	if _, err := db.Exec(schema); err != nil {
+		return err
+	}
+	for _, alter := range columnMigrations {
+		if err := addColumnIfMissing(db, alter); err != nil {
+			return fmt.Errorf("column migration %q: %w", alter, err)
+		}
+	}
+	return nil
+}
+
+func addColumnIfMissing(db *sql.DB, alter string) error {
+	_, err := db.Exec(alter)
+	if err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return err
+	}
+	return nil
 }

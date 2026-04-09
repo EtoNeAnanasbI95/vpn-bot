@@ -36,9 +36,15 @@ func (r *paymentRepo) GetByUserAndPeriod(ctx context.Context, userID int64, year
 
 func (r *paymentRepo) GetUnpaidForPeriod(ctx context.Context, year, month int) ([]*domain.Payment, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, user_id, period_year, period_month, paid_at, confirmed_by, created_at
-		FROM payments
-		WHERE period_year = ? AND period_month = ? AND paid_at IS NULL
+		SELECT p.id, p.user_id, p.period_year, p.period_month, p.paid_at, p.confirmed_by, p.created_at
+		FROM payments p
+		JOIN users u ON u.id = p.user_id
+		WHERE p.period_year = ? AND p.period_month = ? AND p.paid_at IS NULL
+		AND u.is_free_friend = 0
+		AND EXISTS (
+			SELECT 1 FROM connection_payments cp
+			WHERE cp.user_id = p.user_id AND cp.status != 'free'
+		)
 	`, year, month)
 	if err != nil {
 		return nil, err

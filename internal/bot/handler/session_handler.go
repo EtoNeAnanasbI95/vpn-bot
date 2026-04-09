@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
@@ -60,7 +61,59 @@ func HandleSessionMessage(
 		reply.ReplyMarkup = keyboard.ConnPaymentTypeSelect()
 		send(bot, reply)
 		return true
+
+	case session.StateSetPayDate:
+		sessions.Clear(msg.From.ID)
+		HandleSessionSetPayDate(ctx, bot, msg, sess, uc)
+		return true
 	}
 
 	return false
+}
+
+// HandleSessionSetPayDate processes the pay-date text the admin typed.
+func HandleSessionSetPayDate(
+	ctx context.Context,
+	bot *tgbotapi.BotAPI,
+	msg *tgbotapi.Message,
+	sess *session.Session,
+	uc *UseCases,
+) {
+	targetIDStr := sess.Data[session.KeyPayDateUserID]
+	targetID, err := strconv.ParseInt(targetIDStr, 10, 64)
+	if err != nil {
+		send(bot, tgbotapi.NewMessage(msg.Chat.ID, "Внутренняя ошибка: неверный ID пользователя."))
+		return
+	}
+
+	t, err := time.ParseInLocation("02.01.2006", msg.Text, time.UTC)
+	if err != nil {
+		reply := tgbotapi.NewMessage(msg.Chat.ID, "❌ Неверный формат даты. Введите в формате <code>ДД.ММ.ГГГГ</code>, например <code>15.03.2025</code>.")
+		reply.ParseMode = tgbotapi.ModeHTML
+		send(bot, reply)
+		return
+	}
+
+	if err := uc.User.SetLastPaidAt(ctx, targetID, &t); err != nil {
+		send(bot, tgbotapi.NewMessage(msg.Chat.ID, "Ошибка при сохранении даты оплаты."))
+		return
+	}
+
+	user, err := uc.User.GetUser(ctx, targetID)
+	if err != nil {
+		send(bot, tgbotapi.NewMessage(msg.Chat.ID, "✅ Дата оплаты сохранена."))
+		return
+	}
+	name := user.DisplayName()
+	if user.Username != "" {
+		name += " (@" + user.Username + ")"
+	}
+	reply := tgbotapi.NewMessage(msg.Chat.ID, fmt.Sprintf(
+		"✅ Дата оплаты для <b>%s</b> установлена: <b>%s</b>\n\nНапоминание будет отправлено <b>%s</b>.",
+		name,
+		t.Format("02.01.2006"),
+		t.AddDate(0, 1, 0).Format("02.01.2006"),
+	))
+	reply.ParseMode = tgbotapi.ModeHTML
+	send(bot, reply)
 }

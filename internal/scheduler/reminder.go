@@ -166,6 +166,7 @@ func (s *Scheduler) sendConnPaymentReminders(ctx context.Context) {
 func (s *Scheduler) sendReminders() {
 	ctx := context.Background()
 	s.sendConnPaymentReminders(ctx)
+	s.sendPayDateReminders(ctx)
 
 	unpaid, err := s.paymentUC.GetUnpaidUsers(ctx)
 	if err != nil {
@@ -179,6 +180,11 @@ func (s *Scheduler) sendReminders() {
 		user, err := s.userUC.GetUser(ctx, payment.UserID)
 		if err != nil {
 			slog.Warn("scheduler: get user", "user_id", payment.UserID, "err", err)
+			continue
+		}
+
+		// Skip free friends — they never receive payment reminders.
+		if user.IsFreeFriend {
 			continue
 		}
 
@@ -210,6 +216,54 @@ func (s *Scheduler) sendReminders() {
 		adminMsg.ReplyMarkup = keyboard.PayConfirmButton(user.ID)
 		if _, err := s.bot.Send(adminMsg); err != nil {
 			slog.Warn("scheduler: notify admin", "admin_id", user.AdminID, "err", err)
+		}
+	}
+}
+
+// sendPayDateReminders fires once-per-cycle for users whose last_paid_at is 1+
+// months ago. After sending, last_paid_at is cleared so it doesn't fire again.
+func (s *Scheduler) sendPayDateReminders(ctx context.Context) {
+	users, err := s.userUC.GetUsersWithDueReminder(ctx)
+	if err != nil {
+		slog.Error("scheduler: get pay-date reminders", "err", err)
+		return
+	}
+	if len(users) == 0 {
+		return
+	}
+
+	slog.Info("scheduler: sending pay-date reminders", "count", len(users))
+
+	for _, user := range users {
+		// Clear the date first so that even if notification fails we don't loop.
+		if err := s.userUC.SetLastPaidAt(ctx, user.ID, nil); err != nil {
+			slog.Warn("scheduler: clear last_paid_at", "user_id", user.ID, "err", err)
+		}
+
+		// Remind the user.
+		userMsg := tgbotapi.NewMessage(user.ID,
+			"⏰ <b>Напоминание об оплате VPN</b>\n\nПрошёл месяц с момента вашей последней оплаты. Пожалуйста, свяжитесь с администратором для продления.")
+		userMsg.ParseMode = tgbotapi.ModeHTML
+		if _, err := s.bot.Send(userMsg); err != nil {
+			slog.Warn("scheduler: pay-date reminder to user", "user_id", user.ID, "err", err)
+		}
+
+		// Notify admin.
+		if user.AdminID == 0 {
+			continue
+		}
+		name := user.DisplayName()
+		if user.Username != "" {
+			name += " (@" + user.Username + ")"
+		}
+		adminMsg := tgbotapi.NewMessage(user.AdminID, fmt.Sprintf(
+			"📅 <b>Истёк срок оплаты</b>\n\nПользователь <b>%s</b> должен оплатить VPN — прошло более месяца с последней оплаты.\n\nID: <code>%d</code>",
+			name, user.ID,
+		))
+		adminMsg.ParseMode = tgbotapi.ModeHTML
+		adminMsg.ReplyMarkup = keyboard.PayConfirmButton(user.ID)
+		if _, err := s.bot.Send(adminMsg); err != nil {
+			slog.Warn("scheduler: pay-date reminder to admin", "admin_id", user.AdminID, "err", err)
 		}
 	}
 }

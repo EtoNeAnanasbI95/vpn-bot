@@ -3,12 +3,14 @@ package domain
 import "time"
 
 type User struct {
-	ID        int64
-	Username  string
-	FirstName string
-	LastName  string
-	AdminID   int64
-	CreatedAt time.Time
+	ID           int64
+	Username     string
+	FirstName    string
+	LastName     string
+	AdminID      int64
+	IsFreeFriend bool
+	LastPaidAt   *time.Time
+	CreatedAt    time.Time
 }
 
 func (u *User) DisplayName() string {

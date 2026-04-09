@@ -29,9 +29,13 @@ const (
 	ActionAdmSetPayInfo = "adm_set_pay_info"
 	ActionAdmBcastAll   = "adm_bcast_all"
 	ActionAdmBcastUser  = "adm_bcast_user"
-	ActionAdmUserList   = "adm_user_list"
-	ActionAdmUserDelete = "adm_user_del"
-	ActionMainMenu = "main_menu"
+	ActionAdmUserList        = "adm_user_list"
+	ActionAdmUserDelete      = "adm_user_del"
+	ActionAdmFreeFriendList  = "adm_ff_list"   // list all users for free-friend toggling
+	ActionAdmFreeFriendToggle = "adm_ff_toggle" // toggle free-friend for a user
+	ActionAdmPayDateList     = "adm_pd_list"   // list all users for pay-date management
+	ActionAdmPayDateUser     = "adm_pd_user"   // start session to set pay date for a user
+	ActionMainMenu           = "main_menu"
 )
 
 func Encode(parts ...string) string {
@@ -74,4 +78,10 @@ func AdmUserList(page int) string    { return fmt.Sprintf("%s%s%d", ActionAdmUse
 func AdmUserDelete(userID int64) string { return fmt.Sprintf("%s%s%d", ActionAdmUserDelete, sep, userID) }
 func AdmBcastUser(userID int64) string {
 	return fmt.Sprintf("%s%s%d", ActionAdmBcastUser, sep, userID)
+}
+func AdmFreeFriendToggle(userID int64) string {
+	return fmt.Sprintf("%s%s%d", ActionAdmFreeFriendToggle, sep, userID)
+}
+func AdmPayDateUser(userID int64) string {
+	return fmt.Sprintf("%s%s%d", ActionAdmPayDateUser, sep, userID)
 }

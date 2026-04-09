@@ -12,15 +12,17 @@ const (
 	StateAddConnLabel       State = "add_conn_lbl"   // waiting for connection label
 	StateAddConnPaymentType State = "add_conn_pay"   // waiting for admin to pick paid/free
 	StateSetPaymentInfo     State = "set_pay_info"   // waiting for admin to enter payment credentials
+	StateSetPayDate         State = "set_pay_date"   // waiting for admin to enter pay date (DD.MM.YYYY)
 )
 
 // Data keys stored in Session.Data.
 const (
-	KeyTargetUserID = "target_uid"
-	KeyConnLabel    = "conn_lbl"
-	KeyConnUserID   = "conn_uid"
-	KeyConnTgTag    = "conn_tg_tag"
-	KeyConnAdminID  = "conn_admin_id"
+	KeyTargetUserID  = "target_uid"
+	KeyConnLabel     = "conn_lbl"
+	KeyConnUserID    = "conn_uid"
+	KeyConnTgTag     = "conn_tg_tag"
+	KeyConnAdminID   = "conn_admin_id"
+	KeyPayDateUserID = "paydate_uid"
 )
 
 // Session holds transient per-user state between handler invocations.

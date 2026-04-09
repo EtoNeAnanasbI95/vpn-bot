@@ -115,38 +115,50 @@ func (c *httpClient) CreateClient(ctx context.Context, inboundID int, email stri
 		Comment: comment,
 	}
 
+	if err := c.doAddClient(ctx, inboundID, client); err != nil {
+		if loginErr := c.Login(ctx); loginErr == nil {
+			err = c.doAddClient(ctx, inboundID, client)
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &client, nil
+}
+
+func (c *httpClient) doAddClient(ctx context.Context, inboundID int, client XUIClient) error {
 	settingsBytes, err := json.Marshal(InboundSettings{Clients: []XUIClient{client}})
 	if err != nil {
-		return nil, fmt.Errorf("xui create client: marshal settings: %w", err)
+		return fmt.Errorf("xui create client: marshal settings: %w", err)
 	}
 
 	body := &bytes.Buffer{}
 	w := multipart.NewWriter(body)
-	w.WriteField("id", strconv.Itoa(inboundID))        //nolint:errcheck
-	w.WriteField("settings", string(settingsBytes))    //nolint:errcheck
+	w.WriteField("id", strconv.Itoa(inboundID))     //nolint:errcheck
+	w.WriteField("settings", string(settingsBytes)) //nolint:errcheck
 	w.Close()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/panel/api/inbounds/addClient", body)
 	if err != nil {
-		return nil, fmt.Errorf("xui create client: build request: %w", err)
+		return fmt.Errorf("xui create client: build request: %w", err)
 	}
 	req.Header.Set("Content-Type", w.FormDataContentType())
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("xui create client: do request: %w", err)
+		return fmt.Errorf("xui create client: do request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, _ := io.ReadAll(resp.Body)
 	var result apiResponse
 	if err := json.Unmarshal(respBody, &result); err != nil {
-		return nil, fmt.Errorf("xui create client: decode: %w", err)
+		return fmt.Errorf("xui create client: decode: %w", err)
 	}
 	if !result.Success {
-		return nil, fmt.Errorf("xui create client: %s", result.Msg)
+		return fmt.Errorf("xui create client: %s", result.Msg)
 	}
-	return &client, nil
+	return nil
 }
 
 // SetClientEnabled enables or disables a client.
@@ -208,7 +220,18 @@ func (c *httpClient) DeleteClient(ctx context.Context, inboundID int, clientUUID
 }
 
 // doGet performs an authenticated GET and returns the raw "obj" field.
+// On decode failure (e.g. session expired) it re-logs in and retries once.
 func (c *httpClient) doGet(ctx context.Context, path string) (json.RawMessage, error) {
+	raw, err := c.doGetOnce(ctx, path)
+	if err != nil {
+		if loginErr := c.Login(ctx); loginErr == nil {
+			raw, err = c.doGetOnce(ctx, path)
+		}
+	}
+	return raw, err
+}
+
+func (c *httpClient) doGetOnce(ctx context.Context, path string) (json.RawMessage, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
 		return nil, err
@@ -237,7 +260,18 @@ func (c *httpClient) doGet(ctx context.Context, path string) (json.RawMessage, e
 }
 
 // doPost performs an authenticated POST with a JSON body.
+// On decode failure (e.g. session expired) it re-logs in and retries once.
 func (c *httpClient) doPost(ctx context.Context, path string, body []byte) error {
+	err := c.doPostOnce(ctx, path, body)
+	if err != nil {
+		if loginErr := c.Login(ctx); loginErr == nil {
+			err = c.doPostOnce(ctx, path, body)
+		}
+	}
+	return err
+}
+
+func (c *httpClient) doPostOnce(ctx context.Context, path string, body []byte) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, bytes.NewReader(body))
 	if err != nil {
 		return err

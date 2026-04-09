@@ -1,7 +1,14 @@
 services:
   bot:
-    build: .
+    image: vpn-bot:latest
     restart: unless-stopped
     env_file: .env
     volumes:
       - ./data:/data
+      - ./assets:/app/assets
+    networks:
+      - web-server
+
+networks:
+  web-server:
+    external: true

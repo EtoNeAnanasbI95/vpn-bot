@@ -79,38 +79,28 @@ func HandleSessionSetPayDate(
 	sess *session.Session,
 	uc *UseCases,
 ) {
-	targetIDStr := sess.Data[session.KeyPayDateUserID]
-	targetID, err := strconv.ParseInt(targetIDStr, 10, 64)
-	if err != nil {
-		send(bot, tgbotapi.NewMessage(msg.Chat.ID, "Внутренняя ошибка: неверный ID пользователя."))
-		return
-	}
+	connUUID := sess.Data[session.KeyPayDateConnUUID]
+	userIDStr := sess.Data[session.KeyPayDateConnUserID]
+	adminIDStr := sess.Data[session.KeyPayDateConnAdminID]
+
+	userID, _ := strconv.ParseInt(userIDStr, 10, 64)
+	adminID, _ := strconv.ParseInt(adminIDStr, 10, 64)
 
 	t, err := time.ParseInLocation("02.01.2006", msg.Text, time.UTC)
 	if err != nil {
-		reply := tgbotapi.NewMessage(msg.Chat.ID, "❌ Неверный формат даты. Введите в формате <code>ДД.ММ.ГГГГ</code>, например <code>15.03.2025</code>.")
+		reply := tgbotapi.NewMessage(msg.Chat.ID, "❌ Неверный формат. Введите дату как <code>ДД.ММ.ГГГГ</code>, например <code>15.03.2025</code>.")
 		reply.ParseMode = tgbotapi.ModeHTML
 		send(bot, reply)
 		return
 	}
 
-	if err := uc.User.SetLastPaidAt(ctx, targetID, &t); err != nil {
+	if err := uc.Connection.SetConnLastPaidAt(ctx, connUUID, userID, adminID, &t); err != nil {
 		send(bot, tgbotapi.NewMessage(msg.Chat.ID, "Ошибка при сохранении даты оплаты."))
 		return
 	}
 
-	user, err := uc.User.GetUser(ctx, targetID)
-	if err != nil {
-		send(bot, tgbotapi.NewMessage(msg.Chat.ID, "✅ Дата оплаты сохранена."))
-		return
-	}
-	name := user.DisplayName()
-	if user.Username != "" {
-		name += " (@" + user.Username + ")"
-	}
 	reply := tgbotapi.NewMessage(msg.Chat.ID, fmt.Sprintf(
-		"✅ Дата оплаты для <b>%s</b> установлена: <b>%s</b>\n\nНапоминание будет отправлено <b>%s</b>.",
-		name,
+		"✅ Дата оплаты установлена: <b>%s</b>\n\nНапоминание придёт <b>%s</b>.",
 		t.Format("02.01.2006"),
 		t.AddDate(0, 1, 0).Format("02.01.2006"),
 	))

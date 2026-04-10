@@ -22,7 +22,9 @@ const (
 	KeyConnUserID    = "conn_uid"
 	KeyConnTgTag     = "conn_tg_tag"
 	KeyConnAdminID   = "conn_admin_id"
-	KeyPayDateUserID = "paydate_uid"
+	KeyPayDateConnUUID   = "paydate_uuid"
+	KeyPayDateConnUserID = "paydate_uid"
+	KeyPayDateConnAdminID = "paydate_aid"
 )
 
 // Session holds transient per-user state between handler invocations.

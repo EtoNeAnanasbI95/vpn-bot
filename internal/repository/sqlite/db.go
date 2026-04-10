@@ -75,7 +75,7 @@ func Open(dbPath string) (*sql.DB, error) {
 // addColumnIfMissing ignores "duplicate column name" errors so they are idempotent.
 var columnMigrations = []string{
 	`ALTER TABLE users ADD COLUMN is_free_friend INTEGER NOT NULL DEFAULT 0`,
-	`ALTER TABLE users ADD COLUMN last_paid_at DATETIME`,
+	`ALTER TABLE connection_payments ADD COLUMN last_paid_at DATETIME`,
 }
 
 func Migrate(db *sql.DB) error {

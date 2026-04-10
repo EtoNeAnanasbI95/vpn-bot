@@ -9,7 +9,6 @@ type User struct {
 	LastName     string
 	AdminID      int64
 	IsFreeFriend bool
-	LastPaidAt   *time.Time
 	CreatedAt    time.Time
 }
 

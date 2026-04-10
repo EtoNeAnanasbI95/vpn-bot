@@ -20,11 +20,6 @@ type UserUseCase interface {
 	// from all payment reminders.
 	SetFreeFriend(ctx context.Context, userID int64, isFree bool) error
 	GetFreeFriends(ctx context.Context) ([]*domain.User, error)
-	// SetLastPaidAt records the date a user last paid (nil clears it).
-	// One month after this date, the scheduler sends them a renewal reminder.
-	SetLastPaidAt(ctx context.Context, userID int64, paidAt *time.Time) error
-	// GetUsersWithDueReminder returns users whose last_paid_at was 1+ months ago.
-	GetUsersWithDueReminder(ctx context.Context) ([]*domain.User, error)
 }
 
 type ConnectionUseCase interface {
@@ -55,6 +50,11 @@ type ConnectionUseCase interface {
 	SetAdminPaymentInfo(ctx context.Context, adminID int64, info string) error
 	// GetAdminOwnPaymentInfo returns the payment credentials set by the given admin.
 	GetAdminOwnPaymentInfo(ctx context.Context, adminID int64) (string, error)
+	// SetConnLastPaidAt records (or clears) the last payment date for a connection.
+	// Creates a connection_payments row if one doesn't exist yet.
+	SetConnLastPaidAt(ctx context.Context, connUUID string, userID, adminID int64, paidAt *time.Time) error
+	// GetConnsWithDueReminder returns connections whose last_paid_at was 1+ months ago.
+	GetConnsWithDueReminder(ctx context.Context) ([]*domain.ConnPayment, error)
 }
 
 type PaymentUseCase interface {

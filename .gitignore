@@ -35,3 +35,4 @@ bin/
 # Data
 data/
 /.claude
+/3X-UI.postman_collection.json

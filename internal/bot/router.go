@@ -249,6 +249,9 @@ func (r *Router) handleCallback(ctx context.Context, q *tgbotapi.CallbackQuery) 
 	case callback.ActionAdmFreeFriendList:
 		handler.HandleAdminFreeFriendList(ctx, r.bot, chatID, q.ID, r.uc)
 
+	case callback.ActionAdmFreeFriendAdd:
+		handler.HandleAdminFreeFriendAdd(ctx, r.bot, chatID, q.ID, r.uc)
+
 	case callback.ActionAdmFreeFriendToggle:
 		if len(parts) < 2 {
 			break
@@ -264,7 +267,25 @@ func (r *Router) handleCallback(ctx context.Context, q *tgbotapi.CallbackQuery) 
 			break
 		}
 		uid, _ := strconv.ParseInt(parts[1], 10, 64)
-		handler.HandleAdminPayDateUser(ctx, r.bot, chatID, q.ID, q.From.ID, uid, r.sessions, r.uc)
+		handler.HandleAdminPayDateUser(ctx, r.bot, chatID, q.ID, uid, r.uc)
+
+	case callback.ActionAdmPayDateConn:
+		if len(parts) < 2 {
+			break
+		}
+		// We need the target userID; store it in session via a preceding step.
+		// The conn UUID is parts[1]; userID is retrieved from the connection_payments row.
+		// For simplicity: pass 0 as userID — SetConnLastPaidAt will upsert with it.
+		// The admin is q.From.ID; we need the real userID from the connection.
+		// We look it up via ListForUser isn't feasible here without userID.
+		// The solution: pass userID in parts[2] from AdmPayDateConn builder.
+		// For now use parts encoding: adm_pd_conn|uuid|userID
+		connUUID := parts[1]
+		var targetUID int64
+		if len(parts) >= 3 {
+			targetUID, _ = strconv.ParseInt(parts[2], 10, 64)
+		}
+		handler.HandleAdminPayDateConn(ctx, r.bot, chatID, q.ID, q.From.ID, targetUID, connUUID, r.sessions, r.uc)
 
 	default:
 		r.bot.Request(tgbotapi.NewCallback(q.ID, "")) //nolint:errcheck

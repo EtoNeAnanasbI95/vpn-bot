@@ -31,10 +31,12 @@ const (
 	ActionAdmBcastUser  = "adm_bcast_user"
 	ActionAdmUserList        = "adm_user_list"
 	ActionAdmUserDelete      = "adm_user_del"
-	ActionAdmFreeFriendList  = "adm_ff_list"   // list all users for free-friend toggling
+	ActionAdmFreeFriendList   = "adm_ff_list"   // show current free friends
+	ActionAdmFreeFriendAdd    = "adm_ff_add"    // show non-friends to add
 	ActionAdmFreeFriendToggle = "adm_ff_toggle" // toggle free-friend for a user
-	ActionAdmPayDateList     = "adm_pd_list"   // list all users for pay-date management
-	ActionAdmPayDateUser     = "adm_pd_user"   // start session to set pay date for a user
+	ActionAdmPayDateList      = "adm_pd_list"   // list users for pay-date management
+	ActionAdmPayDateUser      = "adm_pd_user"   // list connections for a user
+	ActionAdmPayDateConn      = "adm_pd_conn"   // start session to enter date for a connection
 	ActionMainMenu           = "main_menu"
 )
 
@@ -84,4 +86,7 @@ func AdmFreeFriendToggle(userID int64) string {
 }
 func AdmPayDateUser(userID int64) string {
 	return fmt.Sprintf("%s%s%d", ActionAdmPayDateUser, sep, userID)
+}
+func AdmPayDateConn(connUUID string, userID int64) string {
+	return fmt.Sprintf("%s%s%s%s%d", ActionAdmPayDateConn, sep, connUUID, sep, userID)
 }

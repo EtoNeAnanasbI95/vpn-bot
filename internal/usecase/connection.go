@@ -240,6 +240,14 @@ func (uc *connectionUseCase) GetAdminOwnPaymentInfo(ctx context.Context, adminID
 	return uc.connPayRepo.GetAdminPaymentInfo(ctx, adminID)
 }
 
+func (uc *connectionUseCase) SetConnLastPaidAt(ctx context.Context, connUUID string, userID, adminID int64, paidAt *time.Time) error {
+	return uc.connPayRepo.SetLastPaidAt(ctx, connUUID, userID, adminID, paidAt)
+}
+
+func (uc *connectionUseCase) GetConnsWithDueReminder(ctx context.Context) ([]*domain.ConnPayment, error) {
+	return uc.connPayRepo.GetConnsWithDuePaidReminder(ctx)
+}
+
 // inboundAndVLESSBase parses stream settings from an already-fetched inbound.
 func (uc *connectionUseCase) inboundAndVLESSBase(inbound *xui.Inbound) (*xui.Inbound, url.Values, error) {
 	var stream xui.StreamSettings

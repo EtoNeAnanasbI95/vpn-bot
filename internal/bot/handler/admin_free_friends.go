@@ -10,8 +10,9 @@ import (
 	"github.com/EtoNeAnanasbI95/vpn-bot/internal/bot/session"
 )
 
-// HandleAdminFreeFriendList shows all users with their free-friend status.
-// Clicking a user will toggle their status.
+// ── Free friends ──────────────────────────────────────────────────────────────
+
+// HandleAdminFreeFriendList shows current free friends with remove buttons.
 func HandleAdminFreeFriendList(
 	ctx context.Context,
 	bot *tgbotapi.BotAPI,
@@ -21,19 +22,57 @@ func HandleAdminFreeFriendList(
 ) {
 	answerCallback(bot, callbackID, "")
 
-	users, err := uc.User.GetAll(ctx)
-	if err != nil || len(users) == 0 {
-		send(bot, tgbotapi.NewMessage(chatID, "Нет зарегистрированных клиентов."))
+	friends, err := uc.User.GetFreeFriends(ctx)
+	if err != nil {
+		send(bot, tgbotapi.NewMessage(chatID, "Ошибка при загрузке списка друзей."))
 		return
 	}
 
-	msg := tgbotapi.NewMessage(chatID, "💚 <b>Управление друзьями</b>\n\nДрузья не получают напоминаний об оплате.\nНажмите на пользователя, чтобы изменить статус.")
+	text := "💚 <b>Друзья</b>\n\nДрузья не получают напоминаний об оплате."
+	if len(friends) == 0 {
+		text += "\n\nСписок пуст."
+	}
+	msg := tgbotapi.NewMessage(chatID, text)
 	msg.ParseMode = tgbotapi.ModeHTML
-	msg.ReplyMarkup = keyboard.FreeFriendList(users)
+	msg.ReplyMarkup = keyboard.FreeFriendList(friends)
 	send(bot, msg)
 }
 
-// HandleAdminFreeFriendToggle toggles the free-friend status for a user.
+// HandleAdminFreeFriendAdd shows all non-friend users so admin can add one.
+func HandleAdminFreeFriendAdd(
+	ctx context.Context,
+	bot *tgbotapi.BotAPI,
+	chatID int64,
+	callbackID string,
+	uc *UseCases,
+) {
+	answerCallback(bot, callbackID, "")
+
+	all, err := uc.User.GetAll(ctx)
+	if err != nil {
+		send(bot, tgbotapi.NewMessage(chatID, "Ошибка при загрузке клиентов."))
+		return
+	}
+
+	var nonFriends = all[:0]
+	for _, u := range all {
+		if !u.IsFreeFriend {
+			nonFriends = append(nonFriends, u)
+		}
+	}
+
+	if len(nonFriends) == 0 {
+		send(bot, tgbotapi.NewMessage(chatID, "Все клиенты уже являются друзьями."))
+		return
+	}
+
+	msg := tgbotapi.NewMessage(chatID, "Выберите клиента для добавления в друзья:")
+	msg.ParseMode = tgbotapi.ModeHTML
+	msg.ReplyMarkup = keyboard.FreeFriendAddList(nonFriends)
+	send(bot, msg)
+}
+
+// HandleAdminFreeFriendToggle toggles is_free_friend and returns to the friends list.
 func HandleAdminFreeFriendToggle(
 	ctx context.Context,
 	bot *tgbotapi.BotAPI,
@@ -60,11 +99,12 @@ func HandleAdminFreeFriendToggle(
 		answerCallback(bot, callbackID, "❌ Убран из друзей")
 	}
 
-	// Refresh the list.
 	HandleAdminFreeFriendList(ctx, bot, chatID, "", uc)
 }
 
-// HandleAdminPayDateList shows all users for pay-date management.
+// ── Pay dates ─────────────────────────────────────────────────────────────────
+
+// HandleAdminPayDateList shows all users so admin can drill into a user's connections.
 func HandleAdminPayDateList(
 	ctx context.Context,
 	bot *tgbotapi.BotAPI,
@@ -80,22 +120,19 @@ func HandleAdminPayDateList(
 		return
 	}
 
-	msg := tgbotapi.NewMessage(chatID, "📅 <b>Даты оплат</b>\n\nВыберите клиента для установки даты оплаты.\nЧерез месяц после указанной даты бот отправит ему напоминание.")
+	msg := tgbotapi.NewMessage(chatID, "📅 <b>Даты оплат</b>\n\nВыберите клиента, чтобы увидеть его подключения:")
 	msg.ParseMode = tgbotapi.ModeHTML
-	msg.ReplyMarkup = keyboard.PayDateList(users)
+	msg.ReplyMarkup = keyboard.PayDateUserList(users)
 	send(bot, msg)
 }
 
-// HandleAdminPayDateUser starts a session for the admin to enter a pay date for
-// the selected user.
+// HandleAdminPayDateUser shows connections for a user so admin can select one.
 func HandleAdminPayDateUser(
 	ctx context.Context,
 	bot *tgbotapi.BotAPI,
 	chatID int64,
 	callbackID string,
-	adminUserID int64,
 	targetUserID int64,
-	sessions session.Store,
 	uc *UseCases,
 ) {
 	user, err := uc.User.GetUser(ctx, targetUserID)
@@ -105,19 +142,54 @@ func HandleAdminPayDateUser(
 	}
 	answerCallback(bot, callbackID, "")
 
-	sessions.Set(adminUserID, &session.Session{
-		State: session.StateSetPayDate,
-		Data:  map[string]string{session.KeyPayDateUserID: fmt.Sprintf("%d", targetUserID)},
-	})
+	conns, err := uc.Connection.ListForUser(ctx, targetUserID)
+	if err != nil || len(conns) == 0 {
+		send(bot, tgbotapi.NewMessage(chatID, "У этого клиента нет подключений."))
+		return
+	}
+
+	var items []keyboard.PayDateConn
+	for _, c := range conns {
+		items = append(items, keyboard.PayDateConn{UUID: c.UUID, Label: c.Label})
+	}
 
 	name := user.DisplayName()
 	if user.Username != "" {
 		name += " (@" + user.Username + ")"
 	}
 	msg := tgbotapi.NewMessage(chatID, fmt.Sprintf(
-		"📅 Введите дату оплаты для <b>%s</b> в формате <code>ДД.ММ.ГГГГ</code>:",
-		name,
+		"📅 Подключения клиента <b>%s</b>\n\nВыберите подключение для установки даты оплаты:", name,
 	))
+	msg.ParseMode = tgbotapi.ModeHTML
+	msg.ReplyMarkup = keyboard.PayDateConnList(items, targetUserID)
+	send(bot, msg)
+}
+
+// HandleAdminPayDateConn starts the session for the admin to type a pay date
+// for a specific connection UUID.
+func HandleAdminPayDateConn(
+	ctx context.Context,
+	bot *tgbotapi.BotAPI,
+	chatID int64,
+	callbackID string,
+	adminUserID int64,
+	targetUserID int64,
+	connUUID string,
+	sessions session.Store,
+	uc *UseCases,
+) {
+	answerCallback(bot, callbackID, "")
+
+	sessions.Set(adminUserID, &session.Session{
+		State: session.StateSetPayDate,
+		Data: map[string]string{
+			session.KeyPayDateConnUUID:    connUUID,
+			session.KeyPayDateConnUserID:  fmt.Sprintf("%d", targetUserID),
+			session.KeyPayDateConnAdminID: fmt.Sprintf("%d", adminUserID),
+		},
+	})
+
+	msg := tgbotapi.NewMessage(chatID, "📅 Введите дату оплаты в формате <code>ДД.ММ.ГГГГ</code>:")
 	msg.ParseMode = tgbotapi.ModeHTML
 	send(bot, msg)
 }

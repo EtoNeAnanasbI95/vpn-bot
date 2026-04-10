@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/EtoNeAnanasbI95/vpn-bot/internal/domain"
 	"github.com/EtoNeAnanasbI95/vpn-bot/internal/repository"
@@ -77,13 +76,6 @@ func (uc *userUseCase) GetFreeFriends(ctx context.Context) ([]*domain.User, erro
 	return uc.userRepo.GetFreeFriends(ctx)
 }
 
-func (uc *userUseCase) SetLastPaidAt(ctx context.Context, userID int64, paidAt *time.Time) error {
-	return uc.userRepo.SetLastPaidAt(ctx, userID, paidAt)
-}
-
-func (uc *userUseCase) GetUsersWithDueReminder(ctx context.Context) ([]*domain.User, error) {
-	return uc.userRepo.GetUsersWithDuePaidReminder(ctx)
-}
 
 // pickAdmin returns the admin ID with the fewest assigned users.
 func (uc *userUseCase) pickAdmin(ctx context.Context) (int64, error) {

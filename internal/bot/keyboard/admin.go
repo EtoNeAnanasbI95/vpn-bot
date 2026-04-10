@@ -1,6 +1,8 @@
 package keyboard
 
 import (
+	"time"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
 	"github.com/EtoNeAnanasbI95/vpn-bot/internal/bot/callback"
@@ -170,16 +172,32 @@ func PayConfirmButton(userID int64) tgbotapi.InlineKeyboardMarkup {
 	)
 }
 
-// FreeFriendList builds a keyboard showing all users with their free-friend status.
-// Clicking a user toggles their status.
-func FreeFriendList(users []*domain.User) tgbotapi.InlineKeyboardMarkup {
+// FreeFriendList shows current free friends with remove buttons + an Add button.
+func FreeFriendList(friends []*domain.User) tgbotapi.InlineKeyboardMarkup {
 	var rows [][]tgbotapi.InlineKeyboardButton
-	for _, u := range users {
-		icon := "❌"
-		if u.IsFreeFriend {
-			icon = "💚"
+	for _, u := range friends {
+		label := "💚 " + u.DisplayName()
+		if u.Username != "" {
+			label += " (@" + u.Username + ")"
 		}
-		label := icon + " " + u.DisplayName()
+		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(label+" ❌", callback.AdmFreeFriendToggle(u.ID)),
+		))
+	}
+	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("➕ Добавить друга", callback.ActionAdmFreeFriendAdd),
+	))
+	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("← Назад", callback.ActionAdmMenu),
+	))
+	return tgbotapi.NewInlineKeyboardMarkup(rows...)
+}
+
+// FreeFriendAddList shows non-friend users that can be added as free friends.
+func FreeFriendAddList(nonFriends []*domain.User) tgbotapi.InlineKeyboardMarkup {
+	var rows [][]tgbotapi.InlineKeyboardButton
+	for _, u := range nonFriends {
+		label := u.DisplayName()
 		if u.Username != "" {
 			label += " (@" + u.Username + ")"
 		}
@@ -188,21 +206,18 @@ func FreeFriendList(users []*domain.User) tgbotapi.InlineKeyboardMarkup {
 		))
 	}
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("← Назад", callback.ActionAdmMenu),
+		tgbotapi.NewInlineKeyboardButtonData("← Назад", callback.ActionAdmFreeFriendList),
 	))
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)
 }
 
-// PayDateList builds a keyboard for selecting a user to set their payment date.
-func PayDateList(users []*domain.User) tgbotapi.InlineKeyboardMarkup {
+// PayDateUserList shows users for pay-date management.
+func PayDateUserList(users []*domain.User) tgbotapi.InlineKeyboardMarkup {
 	var rows [][]tgbotapi.InlineKeyboardButton
 	for _, u := range users {
 		label := u.DisplayName()
 		if u.Username != "" {
 			label += " (@" + u.Username + ")"
-		}
-		if u.LastPaidAt != nil {
-			label += " 📅 " + u.LastPaidAt.Format("02.01.2006")
 		}
 		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData(label, callback.AdmPayDateUser(u.ID)),
@@ -212,4 +227,29 @@ func PayDateList(users []*domain.User) tgbotapi.InlineKeyboardMarkup {
 		tgbotapi.NewInlineKeyboardButtonData("← Назад", callback.ActionAdmMenu),
 	))
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)
+}
+
+// PayDateConnList shows a user's connections so admin can select one for pay-date tracking.
+func PayDateConnList(conns []PayDateConn, userID int64) tgbotapi.InlineKeyboardMarkup {
+	var rows [][]tgbotapi.InlineKeyboardButton
+	for _, c := range conns {
+		label := "🔗 " + c.Label
+		if c.LastPaidAt != nil {
+			label += " 📅 " + c.LastPaidAt.Format("02.01.2006")
+		}
+		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(label, callback.AdmPayDateConn(c.UUID, userID)),
+		))
+	}
+	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("← Назад", callback.AdmPayDateUser(userID)),
+	))
+	return tgbotapi.NewInlineKeyboardMarkup(rows...)
+}
+
+// PayDateConn is a lightweight struct for displaying connection pay-date info.
+type PayDateConn struct {
+	UUID       string
+	Label      string
+	LastPaidAt *time.Time
 }

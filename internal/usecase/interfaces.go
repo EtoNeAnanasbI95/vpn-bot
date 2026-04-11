@@ -17,9 +17,11 @@ type UserUseCase interface {
 	GetByAdmin(ctx context.Context, adminID int64) ([]*domain.User, error)
 	DeleteUser(ctx context.Context, userID int64) error
 	// SetFreeFriend marks or clears the free-friend flag. Free friends are excluded
-	// from all payment reminders.
+	// from all payment reminders and do not appear in the client list.
 	SetFreeFriend(ctx context.Context, userID int64, isFree bool) error
 	GetFreeFriends(ctx context.Context) ([]*domain.User, error)
+	// GetNonFriends returns only regular clients (is_free_friend = 0).
+	GetNonFriends(ctx context.Context) ([]*domain.User, error)
 }
 
 type ConnectionUseCase interface {

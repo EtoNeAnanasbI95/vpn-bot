@@ -1,6 +1,7 @@
 package keyboard
 
 import (
+	"fmt"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -13,7 +14,7 @@ import (
 func AdminPanel() tgbotapi.InlineKeyboardMarkup {
 	return tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("📢 Рассылка", callback.Encode(callback.ActionAdmBcastAll)),
+			tgbotapi.NewInlineKeyboardButtonData("📢 Рассылка", callback.ActionAdmBcastMenu),
 		),
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("💳 Оплаты", callback.ActionAdmPayList),
@@ -39,12 +40,42 @@ func BroadcastMenu() tgbotapi.InlineKeyboardMarkup {
 			tgbotapi.NewInlineKeyboardButtonData("📢 Всем клиентам", callback.ActionAdmBcastAll),
 		),
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("👤 Конкретному клиенту", callback.Encode(callback.ActionAdmBcastUser)),
+			tgbotapi.NewInlineKeyboardButtonData("👤 Одному клиенту", callback.Encode(callback.ActionAdmBcastUser)),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("☑️ Выбранным клиентам", callback.ActionAdmBcastSelect),
 		),
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("← Назад", callback.ActionAdmMenu),
 		),
 	)
+}
+
+// BroadcastMultiSelect shows all users with checkboxes. selectedIDs is a set of toggled IDs.
+func BroadcastMultiSelect(users []*domain.User, selectedIDs map[int64]bool) tgbotapi.InlineKeyboardMarkup {
+	var rows [][]tgbotapi.InlineKeyboardButton
+	for _, u := range users {
+		icon := "⬜"
+		if selectedIDs[u.ID] {
+			icon = "✅"
+		}
+		label := icon + " " + u.DisplayName()
+		if u.Username != "" {
+			label += " (@" + u.Username + ")"
+		}
+		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(label, callback.AdmBcastToggle(u.ID)),
+		))
+	}
+	count := len(selectedIDs)
+	confirmLabel := fmt.Sprintf("✅ Отправить выбранным (%d)", count)
+	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData(confirmLabel, callback.ActionAdmBcastConfirm),
+	))
+	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("← Назад", callback.ActionAdmMenu),
+	))
+	return tgbotapi.NewInlineKeyboardMarkup(rows...)
 }
 
 // PaymentList builds inline keyboard with payment statuses.

@@ -20,6 +20,8 @@ type UserRepository interface {
 	SetFreeFriend(ctx context.Context, userID int64, isFree bool) error
 	// GetFreeFriends returns all users with is_free_friend = 1.
 	GetFreeFriends(ctx context.Context) ([]*domain.User, error)
+	// GetNonFriends returns users with is_free_friend = 0 (regular clients).
+	GetNonFriends(ctx context.Context) ([]*domain.User, error)
 }
 
 type ConnectionPaymentRepository interface {

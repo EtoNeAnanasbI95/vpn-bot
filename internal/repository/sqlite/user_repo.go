@@ -95,6 +95,17 @@ func (r *userRepo) GetFreeFriends(ctx context.Context) ([]*domain.User, error) {
 	return scanUsers(rows)
 }
 
+func (r *userRepo) GetNonFriends(ctx context.Context) ([]*domain.User, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, username, first_name, last_name, admin_id, is_free_friend, is_blocked, created_at
+		FROM users WHERE is_free_friend = 0 ORDER BY created_at`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanUsers(rows)
+}
+
 func scanUser(row *sql.Row) (*domain.User, error) {
 	var u domain.User
 	var isFreeFriend int

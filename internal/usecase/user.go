@@ -76,6 +76,10 @@ func (uc *userUseCase) GetFreeFriends(ctx context.Context) ([]*domain.User, erro
 	return uc.userRepo.GetFreeFriends(ctx)
 }
 
+func (uc *userUseCase) GetNonFriends(ctx context.Context) ([]*domain.User, error) {
+	return uc.userRepo.GetNonFriends(ctx)
+}
+
 
 // pickAdmin returns the admin ID with the fewest assigned users.
 func (uc *userUseCase) pickAdmin(ctx context.Context) (int64, error) {

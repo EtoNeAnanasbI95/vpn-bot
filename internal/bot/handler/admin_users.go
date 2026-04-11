@@ -22,7 +22,7 @@ func HandleAdminUserList(
 ) {
 	answerCallback(bot, callbackID, "")
 
-	users, err := uc.User.GetAll(ctx)
+	users, err := uc.User.GetNonFriends(ctx)
 	if err != nil || len(users) == 0 {
 		send(bot, tgbotapi.NewMessage(chatID, "Нет зарегистрированных клиентов."))
 		return
@@ -95,7 +95,7 @@ func HandleAdminDeleteUser(
 	answerCallback(bot, callbackID, "🗑 Клиент удалён")
 
 	// Show updated user list.
-	users, err := uc.User.GetAll(ctx)
+	users, err := uc.User.GetNonFriends(ctx)
 	if err != nil || len(users) == 0 {
 		send(bot, tgbotapi.NewMessage(chatID, "Нет зарегистрированных клиентов."))
 		return

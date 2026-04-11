@@ -40,6 +40,12 @@ func HandleSessionMessage(
 		ExecuteBroadcastToUser(ctx, bot, msg.Chat.ID, targetID, msg.Text)
 		return true
 
+	case session.StateBroadcastSelected:
+		selected := parseSelectedIDs(sess.Data[session.KeyBcastSelectedIDs])
+		sessions.Clear(msg.From.ID)
+		ExecuteBroadcastSelected(ctx, bot, msg.Chat.ID, msg.Text, selected, uc)
+		return true
+
 	case session.StateSetPaymentInfo:
 		sessions.Clear(msg.From.ID)
 		HandleSessionSetPaymentInfo(ctx, bot, msg, uc)

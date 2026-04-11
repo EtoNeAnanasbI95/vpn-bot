@@ -78,6 +78,17 @@ var columnMigrations = []string{
 	`ALTER TABLE connection_payments ADD COLUMN last_paid_at DATETIME`,
 }
 
+// dataMigrations are named one-time statements tracked in _applied_migrations.
+var dataMigrations = []struct {
+	name string
+	sql  string
+}{
+	{
+		"reset_free_friends_2026_04_11",
+		`UPDATE users SET is_free_friend = 0 WHERE is_free_friend = 1`,
+	},
+}
+
 func Migrate(db *sql.DB) error {
 	if _, err := db.Exec(schema); err != nil {
 		return err
@@ -85,6 +96,29 @@ func Migrate(db *sql.DB) error {
 	for _, alter := range columnMigrations {
 		if err := addColumnIfMissing(db, alter); err != nil {
 			return fmt.Errorf("column migration %q: %w", alter, err)
+		}
+	}
+	if err := runDataMigrations(db); err != nil {
+		return fmt.Errorf("data migrations: %w", err)
+	}
+	return nil
+}
+
+func runDataMigrations(db *sql.DB) error {
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS _applied_migrations (name TEXT PRIMARY KEY)`); err != nil {
+		return err
+	}
+	for _, m := range dataMigrations {
+		var exists int
+		_ = db.QueryRow(`SELECT COUNT(*) FROM _applied_migrations WHERE name = ?`, m.name).Scan(&exists)
+		if exists > 0 {
+			continue
+		}
+		if _, err := db.Exec(m.sql); err != nil {
+			return fmt.Errorf("run %q: %w", m.name, err)
+		}
+		if _, err := db.Exec(`INSERT INTO _applied_migrations (name) VALUES (?)`, m.name); err != nil {
+			return fmt.Errorf("record %q: %w", m.name, err)
 		}
 	}
 	return nil

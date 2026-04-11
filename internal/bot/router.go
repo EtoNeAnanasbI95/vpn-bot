@@ -217,17 +217,32 @@ func (r *Router) handleCallback(ctx context.Context, q *tgbotapi.CallbackQuery) 
 		val, _ := strconv.Atoi(parts[2])
 		handler.HandleAdminConnToggle(ctx, r.bot, chatID, q.ID, msgID, parts[1], val == 1, r.uc)
 
+	case callback.ActionAdmBcastMenu:
+		handler.HandleBroadcastMenu(ctx, r.bot, chatID, q.ID)
+
 	case callback.ActionAdmBcastAll:
 		handler.HandleBroadcastAll(ctx, r.bot, chatID, q.ID, q.From.ID, r.sessions)
 
 	case callback.ActionAdmBcastUser:
 		if len(parts) == 1 {
-			// No UID yet — show user selection.
 			handler.HandleBroadcastSelectUser(ctx, r.bot, chatID, q.ID, r.uc)
 		} else {
 			uid, _ := strconv.ParseInt(parts[1], 10, 64)
 			handler.HandleBroadcastToUser(ctx, r.bot, chatID, q.ID, uid, q.From.ID, r.sessions, r.uc)
 		}
+
+	case callback.ActionAdmBcastSelect:
+		handler.HandleBroadcastOpenSelect(ctx, r.bot, chatID, q.ID, q.From.ID, r.sessions, r.uc)
+
+	case callback.ActionAdmBcastToggle:
+		if len(parts) < 2 {
+			break
+		}
+		uid, _ := strconv.ParseInt(parts[1], 10, 64)
+		handler.HandleBroadcastToggle(ctx, r.bot, chatID, q.ID, msgID, q.From.ID, uid, r.sessions, r.uc)
+
+	case callback.ActionAdmBcastConfirm:
+		handler.HandleBroadcastConfirmSelect(ctx, r.bot, chatID, q.ID, q.From.ID, r.sessions)
 
 	case callback.ActionAdmUserList:
 		handler.HandleAdminUserList(ctx, r.bot, chatID, q.ID, r.uc)

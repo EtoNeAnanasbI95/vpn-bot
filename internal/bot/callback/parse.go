@@ -27,8 +27,12 @@ const (
 	ActionAdmConnDel    = "adm_conn_del"
 	ActionAdmConnToggle = "adm_conn_toggle"
 	ActionAdmSetPayInfo = "adm_set_pay_info"
-	ActionAdmBcastAll   = "adm_bcast_all"
-	ActionAdmBcastUser  = "adm_bcast_user"
+	ActionAdmBcastMenu       = "adm_bcast_menu"   // show broadcast type menu
+	ActionAdmBcastAll        = "adm_bcast_all"
+	ActionAdmBcastUser       = "adm_bcast_user"
+	ActionAdmBcastSelect     = "adm_bcast_sel"    // open multi-select list
+	ActionAdmBcastToggle     = "adm_bcast_tog"    // toggle a user in the selection
+	ActionAdmBcastConfirm    = "adm_bcast_csel"   // confirm selection → ask for message
 	ActionAdmUserList        = "adm_user_list"
 	ActionAdmUserDelete      = "adm_user_del"
 	ActionAdmFreeFriendList   = "adm_ff_list"   // show current free friends
@@ -80,6 +84,9 @@ func AdmUserList(page int) string    { return fmt.Sprintf("%s%s%d", ActionAdmUse
 func AdmUserDelete(userID int64) string { return fmt.Sprintf("%s%s%d", ActionAdmUserDelete, sep, userID) }
 func AdmBcastUser(userID int64) string {
 	return fmt.Sprintf("%s%s%d", ActionAdmBcastUser, sep, userID)
+}
+func AdmBcastToggle(userID int64) string {
+	return fmt.Sprintf("%s%s%d", ActionAdmBcastToggle, sep, userID)
 }
 func AdmFreeFriendToggle(userID int64) string {
 	return fmt.Sprintf("%s%s%d", ActionAdmFreeFriendToggle, sep, userID)

@@ -41,7 +41,17 @@ const (
 	ActionAdmPayDateList      = "adm_pd_list"   // list users for pay-date management
 	ActionAdmPayDateUser      = "adm_pd_user"   // list connections for a user
 	ActionAdmPayDateConn      = "adm_pd_conn"   // start session to enter date for a connection
+	ActionAdmCancel           = "adm_cancel"    // cancel active session and navigate back
 	ActionMainMenu           = "main_menu"
+
+	// Connection request flow (user-initiated).
+	ActionConnRequest       = "conn_request"    // user requests a new connection
+	ActionAdmReqFree        = "adm_req_free"    // admin: approve as friend (free)
+	ActionAdmReqPaid        = "adm_req_paid"    // admin: approve as paid
+	ActionAdmReqPriceBase   = "adm_req_base"    // admin: use base price 300₽
+	ActionAdmReqPriceCustom = "adm_req_custom"  // admin: enter custom price
+	ActionConnReqCheckPay   = "conn_req_check"  // user: notify admin of payment
+	ActionAdmReqConfirmPay  = "adm_req_confirm" // admin: confirm payment and issue connection
 )
 
 func Encode(parts ...string) string {
@@ -97,3 +107,10 @@ func AdmPayDateUser(userID int64) string {
 func AdmPayDateConn(connUUID string, userID int64) string {
 	return fmt.Sprintf("%s%s%s%s%d", ActionAdmPayDateConn, sep, connUUID, sep, userID)
 }
+
+func AdmReqFree(reqUUID string) string        { return Encode(ActionAdmReqFree, reqUUID) }
+func AdmReqPaid(reqUUID string) string        { return Encode(ActionAdmReqPaid, reqUUID) }
+func AdmReqPriceBase(reqUUID string) string   { return Encode(ActionAdmReqPriceBase, reqUUID) }
+func AdmReqPriceCustom(reqUUID string) string { return Encode(ActionAdmReqPriceCustom, reqUUID) }
+func ConnReqCheckPay(reqUUID string) string   { return Encode(ActionConnReqCheckPay, reqUUID) }
+func AdmReqConfirmPay(reqUUID string) string  { return Encode(ActionAdmReqConfirmPay, reqUUID) }

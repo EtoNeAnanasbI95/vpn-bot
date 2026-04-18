@@ -55,6 +55,7 @@ func HandleBroadcastAll(
 	})
 	msg := tgbotapi.NewMessage(chatID, "📢 Введите текст для рассылки <b>всем клиентам</b>:")
 	msg.ParseMode = tgbotapi.ModeHTML
+	msg.ReplyMarkup = keyboard.CancelKeyboard()
 	send(bot, msg)
 }
 
@@ -107,6 +108,7 @@ func HandleBroadcastToUser(
 	msg := tgbotapi.NewMessage(chatID,
 		fmt.Sprintf("💬 Введите сообщение для <b>%s</b>:", user.DisplayName()))
 	msg.ParseMode = tgbotapi.ModeHTML
+	msg.ReplyMarkup = keyboard.CancelKeyboard()
 	send(bot, msg)
 }
 
@@ -214,6 +216,7 @@ func HandleBroadcastConfirmSelect(
 		"📢 Введите текст рассылки для <b>%d</b> выбранных клиентов:", len(selected),
 	))
 	msg.ParseMode = tgbotapi.ModeHTML
+	msg.ReplyMarkup = keyboard.CancelKeyboard()
 	send(bot, msg)
 }
 

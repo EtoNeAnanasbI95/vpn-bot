@@ -9,10 +9,11 @@ import (
 
 // UseCases bundles all application use cases for handler injection.
 type UseCases struct {
-	User       usecase.UserUseCase
-	Connection usecase.ConnectionUseCase
-	Payment    usecase.PaymentUseCase
-	Guide      usecase.GuideUseCase
+	User        usecase.UserUseCase
+	Connection  usecase.ConnectionUseCase
+	Payment     usecase.PaymentUseCase
+	Guide       usecase.GuideUseCase
+	ConnRequest usecase.ConnRequestUseCase
 }
 
 // send is a convenience wrapper to swallow the (Msg, error) return of bot.Send.

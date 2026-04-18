@@ -191,5 +191,6 @@ func HandleAdminPayDateConn(
 
 	msg := tgbotapi.NewMessage(chatID, "📅 Введите дату оплаты в формате <code>ДД.ММ.ГГГГ</code>:")
 	msg.ParseMode = tgbotapi.ModeHTML
+	msg.ReplyMarkup = keyboard.CancelKeyboard()
 	send(bot, msg)
 }

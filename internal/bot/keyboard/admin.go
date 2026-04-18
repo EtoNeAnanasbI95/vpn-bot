@@ -173,6 +173,18 @@ func ConnPaymentTypeSelect() tgbotapi.InlineKeyboardMarkup {
 			tgbotapi.NewInlineKeyboardButtonData("💳 Платное", callback.AdmConnCreate(false)),
 			tgbotapi.NewInlineKeyboardButtonData("🆓 Бесплатное", callback.AdmConnCreate(true)),
 		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("← Отмена", callback.ActionAdmCancel),
+		),
+	)
+}
+
+// CancelKeyboard returns a single-button keyboard for cancelling an active session.
+func CancelKeyboard() tgbotapi.InlineKeyboardMarkup {
+	return tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("← Отмена", callback.ActionAdmCancel),
+		),
 	)
 }
 
@@ -276,6 +288,35 @@ func PayDateConnList(conns []PayDateConn, userID int64) tgbotapi.InlineKeyboardM
 		tgbotapi.NewInlineKeyboardButtonData("← Назад", callback.AdmPayDateUser(userID)),
 	))
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)
+}
+
+// ConnRequestAdminMenu shows the initial response options for a user's connection request.
+func ConnRequestAdminMenu(reqUUID string) tgbotapi.InlineKeyboardMarkup {
+	return tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("💚 Друг — бесплатно", callback.AdmReqFree(reqUUID)),
+			tgbotapi.NewInlineKeyboardButtonData("💳 Платно", callback.AdmReqPaid(reqUUID)),
+		),
+	)
+}
+
+// ConnRequestPriceMenu shows price selection after admin chose "Платно".
+func ConnRequestPriceMenu(reqUUID string) tgbotapi.InlineKeyboardMarkup {
+	return tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("✏️ Своя цена", callback.AdmReqPriceCustom(reqUUID)),
+			tgbotapi.NewInlineKeyboardButtonData("💵 Базовая 300₽", callback.AdmReqPriceBase(reqUUID)),
+		),
+	)
+}
+
+// ConnRequestConfirmPayButton shown to the admin when user claims they paid.
+func ConnRequestConfirmPayButton(reqUUID string) tgbotapi.InlineKeyboardMarkup {
+	return tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("✅ Подтвердить оплату и выдать подключение", callback.AdmReqConfirmPay(reqUUID)),
+		),
+	)
 }
 
 // PayDateConn is a lightweight struct for displaying connection pay-date info.

@@ -15,6 +15,9 @@ func MainMenu() tgbotapi.ReplyKeyboardMarkup {
 			tgbotapi.NewKeyboardButton("📖 Гайды"),
 		),
 		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton("🆕 Запросить подключение"),
+		),
+		tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.NewKeyboardButton("❓ Помощь"),
 		),
 	)
@@ -60,6 +63,15 @@ func ConnectionList(conns []*domain.Connection) tgbotapi.InlineKeyboardMarkup {
 		}
 	}
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)
+}
+
+// ConnRequestCheckPayButton shows "Проверить оплату" to the user after admin sends payment details.
+func ConnRequestCheckPayButton(reqUUID string) tgbotapi.InlineKeyboardMarkup {
+	return tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("✅ Я оплатил — проверить", callback.ConnReqCheckPay(reqUUID)),
+		),
+	)
 }
 
 // PlatformList builds an inline keyboard for guide platform selection.

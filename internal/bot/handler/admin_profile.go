@@ -7,6 +7,7 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
+	"github.com/EtoNeAnanasbI95/vpn-bot/internal/bot/keyboard"
 	"github.com/EtoNeAnanasbI95/vpn-bot/internal/bot/middleware"
 	"github.com/EtoNeAnanasbI95/vpn-bot/internal/bot/session"
 )
@@ -41,6 +42,7 @@ func HandleAdminPaymentInfoMenu(
 		currentInfo,
 	))
 	msg.ParseMode = tgbotapi.ModeHTML
+	msg.ReplyMarkup = keyboard.CancelKeyboard()
 	send(bot, msg)
 }
 

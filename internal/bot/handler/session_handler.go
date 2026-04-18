@@ -72,6 +72,11 @@ func HandleSessionMessage(
 		sessions.Clear(msg.From.ID)
 		HandleSessionSetPayDate(ctx, bot, msg, sess, uc)
 		return true
+
+	case session.StateAdmReqCustomPrice:
+		sessions.Clear(msg.From.ID)
+		HandleSessionAdmReqCustomPrice(ctx, bot, msg, sess, uc)
+		return true
 	}
 
 	return false

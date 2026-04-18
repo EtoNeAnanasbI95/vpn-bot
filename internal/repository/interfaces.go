@@ -40,6 +40,17 @@ type ConnectionPaymentRepository interface {
 	GetConnsWithDuePaidReminder(ctx context.Context) ([]*domain.ConnPayment, error)
 }
 
+type ConnRequestRepository interface {
+	Create(ctx context.Context, r *domain.ConnRequest) error
+	GetByUUID(ctx context.Context, uuid string) (*domain.ConnRequest, error)
+	// GetActiveByUserID returns the most recent non-completed request for the user.
+	GetActiveByUserID(ctx context.Context, userID int64) (*domain.ConnRequest, error)
+	// Claim atomically sets admin_id and status if the request is still 'pending'.
+	Claim(ctx context.Context, uuid string, adminID int64, status domain.ConnRequestStatus) (bool, error)
+	UpdateStatus(ctx context.Context, uuid string, status domain.ConnRequestStatus) error
+	SetAmount(ctx context.Context, uuid string, amount int) error
+}
+
 type PaymentRepository interface {
 	// GetOrCreate returns the existing payment for (user, year, month), creating
 	// an unpaid record if none exists.

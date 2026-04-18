@@ -66,6 +66,17 @@ type PaymentUseCase interface {
 	GetUnpaidUsers(ctx context.Context) ([]*domain.Payment, error)
 }
 
+type ConnRequestUseCase interface {
+	// Create creates a new pending request. Returns error "already_active" if user has one pending.
+	Create(ctx context.Context, userID int64) (*domain.ConnRequest, error)
+	GetByUUID(ctx context.Context, uuid string) (*domain.ConnRequest, error)
+	// Claim atomically claims the request for an admin. Returns false if already claimed.
+	Claim(ctx context.Context, uuid string, adminID int64, status domain.ConnRequestStatus) (bool, error)
+	SetAmount(ctx context.Context, uuid string, amount int) error
+	MarkPaymentPending(ctx context.Context, uuid string) error
+	Complete(ctx context.Context, uuid string) error
+}
+
 type GuideUseCase interface {
 	ListPlatforms(ctx context.Context) ([]domain.Platform, error)
 	GetGuide(ctx context.Context, platformKey string) ([]byte, error)

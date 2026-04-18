@@ -51,6 +51,7 @@ func main() {
 	userRepo := sqlite.NewUserRepository(db)
 	paymentRepo := sqlite.NewPaymentRepository(db)
 	connPayRepo := sqlite.NewConnectionPaymentRepository(db)
+	connRequestRepo := sqlite.NewConnRequestRepository(db)
 
 	// ── 3x-ui client ─────────────────────────────────────────────────────────
 	var xuiClient xui.Client
@@ -69,12 +70,14 @@ func main() {
 	connUC := usecase.NewConnectionUseCase(xuiClient, cfg.XUIInboundID, cfg.XUIServerAddr, connPayRepo)
 	paymentUC := usecase.NewPaymentUseCase(paymentRepo)
 	guideUC := usecase.NewGuideUseCase(guideProvider)
+	connRequestUC := usecase.NewConnRequestUseCase(connRequestRepo)
 
 	useCases := &handler.UseCases{
-		User:       userUC,
-		Connection: connUC,
-		Payment:    paymentUC,
-		Guide:      guideUC,
+		User:        userUC,
+		Connection:  connUC,
+		Payment:     paymentUC,
+		Guide:       guideUC,
+		ConnRequest: connRequestUC,
 	}
 
 	// ── Telegram bot ──────────────────────────────────────────────────────────

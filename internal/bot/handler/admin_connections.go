@@ -152,6 +152,7 @@ func HandleAdminConnAdd(
 	msg := tgbotapi.NewMessage(chatID,
 		fmt.Sprintf("➕ Добавление подключения для <b>%s</b>\n\nВведите название (например: iPhone, Ноутбук):\n\n<i>Клиент будет создан автоматически в 3x-ui на Reality-inbound.</i>", user.DisplayName()))
 	msg.ParseMode = tgbotapi.ModeHTML
+	msg.ReplyMarkup = keyboard.CancelKeyboard()
 	send(bot, msg)
 }
 

@@ -71,6 +71,9 @@ func (r *Router) handleMessage(ctx context.Context, msg *tgbotapi.Message) {
 
 	// Text button routing.
 	switch msg.Text {
+	case "🆕 Запросить подключение":
+		handler.HandleUserRequestConnection(ctx, r.bot, msg.Chat.ID, msg.From.ID, r.cfg.AdminIDs, r.uc)
+
 	case "🔗 Мои подключения":
 		handler.HandleConnectionListFromMessage(ctx, r.bot, msg.Chat.ID, r.uc)
 	case "📖 Гайды":
@@ -301,6 +304,85 @@ func (r *Router) handleCallback(ctx context.Context, q *tgbotapi.CallbackQuery) 
 			targetUID, _ = strconv.ParseInt(parts[2], 10, 64)
 		}
 		handler.HandleAdminPayDateConn(ctx, r.bot, chatID, q.ID, q.From.ID, targetUID, connUUID, r.sessions, r.uc)
+
+	// ── Connection request flow ──────────────────────────────────────────────
+	case callback.ActionAdmReqFree:
+		if len(parts) < 2 {
+			break
+		}
+		handler.HandleAdmReqFree(ctx, r.bot, chatID, q.ID, msgID, q.From.ID, parts[1], r.uc)
+
+	case callback.ActionAdmReqPaid:
+		if len(parts) < 2 {
+			break
+		}
+		handler.HandleAdmReqPaid(ctx, r.bot, chatID, q.ID, msgID, q.From.ID, parts[1], r.uc)
+
+	case callback.ActionAdmReqPriceBase:
+		if len(parts) < 2 {
+			break
+		}
+		handler.HandleAdmReqPriceBase(ctx, r.bot, chatID, q.ID, msgID, q.From.ID, parts[1], r.uc)
+
+	case callback.ActionAdmReqPriceCustom:
+		if len(parts) < 2 {
+			break
+		}
+		handler.HandleAdmReqPriceCustom(ctx, r.bot, chatID, q.ID, q.From.ID, parts[1], r.sessions)
+
+	case callback.ActionConnReqCheckPay:
+		if len(parts) < 2 {
+			break
+		}
+		handler.HandleConnReqCheckPay(ctx, r.bot, chatID, q.ID, msgID, parts[1], r.uc)
+
+	case callback.ActionAdmReqConfirmPay:
+		if len(parts) < 2 {
+			break
+		}
+		handler.HandleAdmReqConfirmPay(ctx, r.bot, chatID, q.ID, msgID, q.From.ID, parts[1], r.uc)
+
+	case callback.ActionAdmCancel:
+		r.bot.Request(tgbotapi.NewCallback(q.ID, "")) //nolint:errcheck
+		sess, ok := r.sessions.Get(q.From.ID)
+		if !ok {
+			handler.HandleAdminPanel(ctx, r.bot, chatID)
+			break
+		}
+		state := sess.State
+		var connUserID int64
+		var payDateUserID int64
+		if state == session.StateAddConnLabel || state == session.StateAddConnPaymentType {
+			if s := sess.Data[session.KeyConnUserID]; s != "" {
+				connUserID, _ = strconv.ParseInt(s, 10, 64)
+			}
+		}
+		if state == session.StateSetPayDate {
+			if s := sess.Data[session.KeyPayDateConnUserID]; s != "" {
+				payDateUserID, _ = strconv.ParseInt(s, 10, 64)
+			}
+		}
+		r.sessions.Clear(q.From.ID)
+		switch state {
+		case session.StateBroadcastAll, session.StateBroadcastToUser, session.StateBroadcastSelected, session.StateBroadcastSelect:
+			handler.HandleBroadcastMenu(ctx, r.bot, chatID, "")
+		case session.StateAddConnLabel, session.StateAddConnPaymentType:
+			if connUserID != 0 {
+				handler.HandleAdminConnList(ctx, r.bot, chatID, "", connUserID, r.uc)
+			} else {
+				handler.HandleAdminConnUsers(ctx, r.bot, chatID, "", r.uc)
+			}
+		case session.StateSetPayDate:
+			if payDateUserID != 0 {
+				handler.HandleAdminPayDateUser(ctx, r.bot, chatID, "", payDateUserID, r.uc)
+			} else {
+				handler.HandleAdminPayDateList(ctx, r.bot, chatID, "", r.uc)
+			}
+		case session.StateAdmReqCustomPrice:
+			r.bot.Send(tgbotapi.NewMessage(chatID, "❌ Ввод цены отменён.")) //nolint:errcheck
+		default:
+			handler.HandleAdminPanel(ctx, r.bot, chatID)
+		}
 
 	default:
 		r.bot.Request(tgbotapi.NewCallback(q.ID, "")) //nolint:errcheck

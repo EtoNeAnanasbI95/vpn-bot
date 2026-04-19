@@ -67,7 +67,7 @@ func main() {
 
 	// ── Use cases ─────────────────────────────────────────────────────────────
 	userUC := usecase.NewUserUseCase(userRepo, cfg.AdminIDs)
-	connUC := usecase.NewConnectionUseCase(xuiClient, cfg.XUIInboundID, cfg.XUIServerAddr, connPayRepo)
+	connUC := usecase.NewConnectionUseCase(xuiClient, cfg.XUIInboundID, cfg.XUIServerAddr, connPayRepo, cfg.AdminIDs)
 	paymentUC := usecase.NewPaymentUseCase(paymentRepo)
 	guideUC := usecase.NewGuideUseCase(guideProvider)
 	connRequestUC := usecase.NewConnRequestUseCase(connRequestRepo)
@@ -106,7 +106,7 @@ func main() {
 	server := botpkg.NewServer(router, cfg.WebhookPath, cfg.ListenAddr)
 
 	// ── Payment reminder scheduler ────────────────────────────────────────────
-	sched, err := scheduler.New(bot, userUC, paymentUC, connUC, cfg.ReminderTZ)
+	sched, err := scheduler.New(bot, userUC, paymentUC, connUC, cfg.ReminderTZ, cfg.AdminIDs)
 	if err != nil {
 		slog.Error("init scheduler", "err", err)
 		os.Exit(1)

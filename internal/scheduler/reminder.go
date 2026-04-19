@@ -20,6 +20,16 @@ type Scheduler struct {
 	userUC    usecase.UserUseCase
 	paymentUC usecase.PaymentUseCase
 	connUC    usecase.ConnectionUseCase
+	adminIDs  []int64
+}
+
+func (s *Scheduler) isAdmin(id int64) bool {
+	for _, a := range s.adminIDs {
+		if a == id {
+			return true
+		}
+	}
+	return false
 }
 
 // New creates a Scheduler with jobs running in the given timezone.
@@ -29,6 +39,7 @@ func New(
 	paymentUC usecase.PaymentUseCase,
 	connUC usecase.ConnectionUseCase,
 	tz string,
+	adminIDs []int64,
 ) (*Scheduler, error) {
 	loc, err := time.LoadLocation(tz)
 	if err != nil {
@@ -41,6 +52,7 @@ func New(
 		userUC:    userUC,
 		paymentUC: paymentUC,
 		connUC:    connUC,
+		adminIDs:  adminIDs,
 	}
 
 	// 12:00 and 20:00 in the configured timezone.
@@ -82,6 +94,9 @@ func (s *Scheduler) blockOverdueConnections() {
 	slog.Info("scheduler: blocking overdue connections", "count", len(overdue))
 
 	for _, pay := range overdue {
+		if s.isAdmin(pay.UserID) {
+			continue
+		}
 		if err := s.connUC.SetEnabled(ctx, pay.UUID, false); err != nil {
 			slog.Warn("scheduler: block overdue connection", "uuid", pay.UUID, "err", err)
 			continue
@@ -132,6 +147,9 @@ func (s *Scheduler) sendConnPaymentReminders(ctx context.Context) {
 	slog.Info("scheduler: sending connection payment reminders", "count", len(unpaid))
 
 	for _, pay := range unpaid {
+		if s.isAdmin(pay.UserID) {
+			continue
+		}
 		// Remind the user.
 		userMsg := tgbotapi.NewMessage(pay.UserID,
 			"⏰ <b>Напоминание об оплате подключения</b>\n\nОдно из ваших подключений ожидает оплаты.\n\nОткройте раздел «🔗 Мои подключения» и нажмите <b>Оплатить</b>.")
@@ -166,7 +184,6 @@ func (s *Scheduler) sendConnPaymentReminders(ctx context.Context) {
 func (s *Scheduler) sendReminders() {
 	ctx := context.Background()
 	s.sendConnPaymentReminders(ctx)
-	s.sendPayDateReminders(ctx)
 
 	unpaid, err := s.paymentUC.GetUnpaidUsers(ctx)
 	if err != nil {
@@ -177,6 +194,10 @@ func (s *Scheduler) sendReminders() {
 	slog.Info("scheduler: sending payment reminders", "count", len(unpaid))
 
 	for _, payment := range unpaid {
+		if s.isAdmin(payment.UserID) {
+			continue
+		}
+
 		user, err := s.userUC.GetUser(ctx, payment.UserID)
 		if err != nil {
 			slog.Warn("scheduler: get user", "user_id", payment.UserID, "err", err)
@@ -220,58 +241,3 @@ func (s *Scheduler) sendReminders() {
 	}
 }
 
-// sendPayDateReminders fires for connections whose last_paid_at was 1+ months ago.
-// After sending, last_paid_at is cleared so the reminder doesn't repeat.
-func (s *Scheduler) sendPayDateReminders(ctx context.Context) {
-	conns, err := s.connUC.GetConnsWithDueReminder(ctx)
-	if err != nil {
-		slog.Error("scheduler: get pay-date reminders", "err", err)
-		return
-	}
-	if len(conns) == 0 {
-		return
-	}
-
-	slog.Info("scheduler: sending pay-date reminders", "count", len(conns))
-
-	for _, pay := range conns {
-		// Clear the date first so we don't remind again even if the message fails.
-		if err := s.connUC.SetConnLastPaidAt(ctx, pay.UUID, pay.UserID, pay.AdminID, nil); err != nil {
-			slog.Warn("scheduler: clear conn last_paid_at", "uuid", pay.UUID, "err", err)
-		}
-
-		user, err := s.userUC.GetUser(ctx, pay.UserID)
-		if err != nil {
-			slog.Warn("scheduler: pay-date reminder — get user", "user_id", pay.UserID, "err", err)
-			continue
-		}
-
-		userMsg := tgbotapi.NewMessage(pay.UserID,
-			"⏰ <b>Напоминание об оплате VPN</b>\n\nПрошёл месяц с момента вашей последней оплаты. Пожалуйста, свяжитесь с администратором для продления.")
-		userMsg.ParseMode = tgbotapi.ModeHTML
-		if _, err := s.bot.Send(userMsg); err != nil {
-			slog.Warn("scheduler: pay-date reminder to user", "user_id", pay.UserID, "err", err)
-		}
-
-		adminID := pay.AdminID
-		if adminID == 0 {
-			adminID = user.AdminID
-		}
-		if adminID == 0 {
-			continue
-		}
-		name := user.DisplayName()
-		if user.Username != "" {
-			name += " (@" + user.Username + ")"
-		}
-		adminMsg := tgbotapi.NewMessage(adminID, fmt.Sprintf(
-			"📅 <b>Истёк срок оплаты</b>\n\nПользователь <b>%s</b> не оплатил VPN — прошло более месяца.\n\nID: <code>%d</code>",
-			name, pay.UserID,
-		))
-		adminMsg.ParseMode = tgbotapi.ModeHTML
-		adminMsg.ReplyMarkup = keyboard.PayConfirmButton(pay.UserID)
-		if _, err := s.bot.Send(adminMsg); err != nil {
-			slog.Warn("scheduler: pay-date reminder to admin", "admin_id", adminID, "err", err)
-		}
-	}
-}

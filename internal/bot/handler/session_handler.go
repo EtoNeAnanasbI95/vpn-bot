@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
@@ -68,9 +67,9 @@ func HandleSessionMessage(
 		send(bot, reply)
 		return true
 
-	case session.StateSetPayDate:
+	case session.StateAddManualUser:
 		sessions.Clear(msg.From.ID)
-		HandleSessionSetPayDate(ctx, bot, msg, sess, uc)
+		HandleSessionAddManualUser(ctx, bot, msg, uc)
 		return true
 
 	case session.StateAdmReqCustomPrice:
@@ -82,39 +81,3 @@ func HandleSessionMessage(
 	return false
 }
 
-// HandleSessionSetPayDate processes the pay-date text the admin typed.
-func HandleSessionSetPayDate(
-	ctx context.Context,
-	bot *tgbotapi.BotAPI,
-	msg *tgbotapi.Message,
-	sess *session.Session,
-	uc *UseCases,
-) {
-	connUUID := sess.Data[session.KeyPayDateConnUUID]
-	userIDStr := sess.Data[session.KeyPayDateConnUserID]
-	adminIDStr := sess.Data[session.KeyPayDateConnAdminID]
-
-	userID, _ := strconv.ParseInt(userIDStr, 10, 64)
-	adminID, _ := strconv.ParseInt(adminIDStr, 10, 64)
-
-	t, err := time.ParseInLocation("02.01.2006", msg.Text, time.UTC)
-	if err != nil {
-		reply := tgbotapi.NewMessage(msg.Chat.ID, "❌ Неверный формат. Введите дату как <code>ДД.ММ.ГГГГ</code>, например <code>15.03.2025</code>.")
-		reply.ParseMode = tgbotapi.ModeHTML
-		send(bot, reply)
-		return
-	}
-
-	if err := uc.Connection.SetConnLastPaidAt(ctx, connUUID, userID, adminID, &t); err != nil {
-		send(bot, tgbotapi.NewMessage(msg.Chat.ID, "Ошибка при сохранении даты оплаты."))
-		return
-	}
-
-	reply := tgbotapi.NewMessage(msg.Chat.ID, fmt.Sprintf(
-		"✅ Дата оплаты установлена: <b>%s</b>\n\nНапоминание придёт <b>%s</b>.",
-		t.Format("02.01.2006"),
-		t.AddDate(0, 1, 0).Format("02.01.2006"),
-	))
-	reply.ParseMode = tgbotapi.ModeHTML
-	send(bot, reply)
-}

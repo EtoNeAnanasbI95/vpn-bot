@@ -2,7 +2,6 @@ package keyboard
 
 import (
 	"fmt"
-	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
@@ -25,7 +24,6 @@ func AdminPanel() tgbotapi.InlineKeyboardMarkup {
 		),
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("💚 Друзья", callback.ActionAdmFreeFriendList),
-			tgbotapi.NewInlineKeyboardButtonData("📅 Даты оплат", callback.ActionAdmPayDateList),
 		),
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("💰 Мои реквизиты", callback.ActionAdmSetPayInfo),
@@ -118,6 +116,27 @@ func UserListForAction(users []*domain.User, actionFn func(int64) string) tgbota
 			tgbotapi.NewInlineKeyboardButtonData(label, actionFn(u.ID)),
 		))
 	}
+	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("← Назад", callback.ActionAdmMenu),
+	))
+	return tgbotapi.NewInlineKeyboardMarkup(rows...)
+}
+
+// ConnUserListWithAdd is like UserListForAction but adds a "➕ Новый клиент" button.
+func ConnUserListWithAdd(users []*domain.User, actionFn func(int64) string) tgbotapi.InlineKeyboardMarkup {
+	var rows [][]tgbotapi.InlineKeyboardButton
+	for _, u := range users {
+		label := u.DisplayName()
+		if u.Username != "" {
+			label += " (@" + u.Username + ")"
+		}
+		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(label, actionFn(u.ID)),
+		))
+	}
+	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("➕ Новый клиент", callback.ActionAdmConnNewUser),
+	))
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
 		tgbotapi.NewInlineKeyboardButtonData("← Назад", callback.ActionAdmMenu),
 	))
@@ -254,42 +273,6 @@ func FreeFriendAddList(nonFriends []*domain.User) tgbotapi.InlineKeyboardMarkup 
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)
 }
 
-// PayDateUserList shows users for pay-date management.
-func PayDateUserList(users []*domain.User) tgbotapi.InlineKeyboardMarkup {
-	var rows [][]tgbotapi.InlineKeyboardButton
-	for _, u := range users {
-		label := u.DisplayName()
-		if u.Username != "" {
-			label += " (@" + u.Username + ")"
-		}
-		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData(label, callback.AdmPayDateUser(u.ID)),
-		))
-	}
-	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("← Назад", callback.ActionAdmMenu),
-	))
-	return tgbotapi.NewInlineKeyboardMarkup(rows...)
-}
-
-// PayDateConnList shows a user's connections so admin can select one for pay-date tracking.
-func PayDateConnList(conns []PayDateConn, userID int64) tgbotapi.InlineKeyboardMarkup {
-	var rows [][]tgbotapi.InlineKeyboardButton
-	for _, c := range conns {
-		label := "🔗 " + c.Label
-		if c.LastPaidAt != nil {
-			label += " 📅 " + c.LastPaidAt.Format("02.01.2006")
-		}
-		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData(label, callback.AdmPayDateConn(c.UUID, userID)),
-		))
-	}
-	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("← Назад", callback.AdmPayDateUser(userID)),
-	))
-	return tgbotapi.NewInlineKeyboardMarkup(rows...)
-}
-
 // ConnRequestAdminMenu shows the initial response options for a user's connection request.
 func ConnRequestAdminMenu(reqUUID string) tgbotapi.InlineKeyboardMarkup {
 	return tgbotapi.NewInlineKeyboardMarkup(
@@ -319,9 +302,3 @@ func ConnRequestConfirmPayButton(reqUUID string) tgbotapi.InlineKeyboardMarkup {
 	)
 }
 
-// PayDateConn is a lightweight struct for displaying connection pay-date info.
-type PayDateConn struct {
-	UUID       string
-	Label      string
-	LastPaidAt *time.Time
-}

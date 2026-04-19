@@ -277,33 +277,8 @@ func (r *Router) handleCallback(ctx context.Context, q *tgbotapi.CallbackQuery) 
 		uid, _ := strconv.ParseInt(parts[1], 10, 64)
 		handler.HandleAdminFreeFriendToggle(ctx, r.bot, chatID, q.ID, uid, r.uc)
 
-	case callback.ActionAdmPayDateList:
-		handler.HandleAdminPayDateList(ctx, r.bot, chatID, q.ID, r.uc)
-
-	case callback.ActionAdmPayDateUser:
-		if len(parts) < 2 {
-			break
-		}
-		uid, _ := strconv.ParseInt(parts[1], 10, 64)
-		handler.HandleAdminPayDateUser(ctx, r.bot, chatID, q.ID, uid, r.uc)
-
-	case callback.ActionAdmPayDateConn:
-		if len(parts) < 2 {
-			break
-		}
-		// We need the target userID; store it in session via a preceding step.
-		// The conn UUID is parts[1]; userID is retrieved from the connection_payments row.
-		// For simplicity: pass 0 as userID — SetConnLastPaidAt will upsert with it.
-		// The admin is q.From.ID; we need the real userID from the connection.
-		// We look it up via ListForUser isn't feasible here without userID.
-		// The solution: pass userID in parts[2] from AdmPayDateConn builder.
-		// For now use parts encoding: adm_pd_conn|uuid|userID
-		connUUID := parts[1]
-		var targetUID int64
-		if len(parts) >= 3 {
-			targetUID, _ = strconv.ParseInt(parts[2], 10, 64)
-		}
-		handler.HandleAdminPayDateConn(ctx, r.bot, chatID, q.ID, q.From.ID, targetUID, connUUID, r.sessions, r.uc)
+	case callback.ActionAdmConnNewUser:
+		handler.HandleAdminConnNewUser(ctx, r.bot, chatID, q.ID, q.From.ID, r.sessions)
 
 	// ── Connection request flow ──────────────────────────────────────────────
 	case callback.ActionAdmReqFree:
@@ -351,15 +326,9 @@ func (r *Router) handleCallback(ctx context.Context, q *tgbotapi.CallbackQuery) 
 		}
 		state := sess.State
 		var connUserID int64
-		var payDateUserID int64
 		if state == session.StateAddConnLabel || state == session.StateAddConnPaymentType {
 			if s := sess.Data[session.KeyConnUserID]; s != "" {
 				connUserID, _ = strconv.ParseInt(s, 10, 64)
-			}
-		}
-		if state == session.StateSetPayDate {
-			if s := sess.Data[session.KeyPayDateConnUserID]; s != "" {
-				payDateUserID, _ = strconv.ParseInt(s, 10, 64)
 			}
 		}
 		r.sessions.Clear(q.From.ID)
@@ -372,12 +341,8 @@ func (r *Router) handleCallback(ctx context.Context, q *tgbotapi.CallbackQuery) 
 			} else {
 				handler.HandleAdminConnUsers(ctx, r.bot, chatID, "", r.uc)
 			}
-		case session.StateSetPayDate:
-			if payDateUserID != 0 {
-				handler.HandleAdminPayDateUser(ctx, r.bot, chatID, "", payDateUserID, r.uc)
-			} else {
-				handler.HandleAdminPayDateList(ctx, r.bot, chatID, "", r.uc)
-			}
+		case session.StateAddManualUser:
+			handler.HandleAdminConnUsers(ctx, r.bot, chatID, "", r.uc)
 		case session.StateAdmReqCustomPrice:
 			r.bot.Send(tgbotapi.NewMessage(chatID, "❌ Ввод цены отменён.")) //nolint:errcheck
 		default:

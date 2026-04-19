@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,6 +23,7 @@ type connectionUseCase struct {
 	xuiInboundID  int
 	xuiServerAddr string
 	connPayRepo   repository.ConnectionPaymentRepository
+	adminIDs      []int64
 }
 
 func NewConnectionUseCase(
@@ -29,12 +31,14 @@ func NewConnectionUseCase(
 	xuiInboundID int,
 	xuiServerAddr string,
 	connPayRepo repository.ConnectionPaymentRepository,
+	adminIDs []int64,
 ) ConnectionUseCase {
 	return &connectionUseCase{
 		xuiClient:     xuiClient,
 		xuiInboundID:  xuiInboundID,
 		xuiServerAddr: xuiServerAddr,
 		connPayRepo:   connPayRepo,
+		adminIDs:      adminIDs,
 	}
 }
 
@@ -126,7 +130,19 @@ func (uc *connectionUseCase) GenerateQR(_ context.Context, link string) ([]byte,
 	return png, nil
 }
 
-func (uc *connectionUseCase) Create(ctx context.Context, userID, adminID int64, tgTag, label string, isFree bool) (*domain.Connection, error) {
+func (uc *connectionUseCase) isAdmin(id int64) bool {
+	for _, a := range uc.adminIDs {
+		if a == id {
+			return true
+		}
+	}
+	return false
+}
+
+func (uc *connectionUseCase) Create(ctx context.Context, userID, adminID int64, tgTag string, isFree bool) (*domain.Connection, error) {
+	if uc.isAdmin(userID) {
+		isFree = true
+	}
 	if uc.xuiClient == nil {
 		return nil, fmt.Errorf("3x-ui client is not configured")
 	}
@@ -137,6 +153,23 @@ func (uc *connectionUseCase) Create(ctx context.Context, userID, adminID int64, 
 		return nil, fmt.Errorf("XUI_SERVER_ADDR is not configured")
 	}
 
+	fetchedInbound, err := uc.xuiClient.GetInbound(ctx, uc.xuiInboundID)
+	if err != nil {
+		return nil, fmt.Errorf("get inbound: %w", err)
+	}
+
+	var existingSettings xui.InboundSettings
+	if err := json.Unmarshal([]byte(fetchedInbound.Settings), &existingSettings); err != nil {
+		return nil, fmt.Errorf("parse inbound settings: %w", err)
+	}
+	count := 0
+	for _, cl := range existingSettings.Clients {
+		if int64(cl.TgId) == userID {
+			count++
+		}
+	}
+	label := strconv.Itoa(count + 1)
+
 	email := sanitizeEmail(fmt.Sprintf("%s-%s-%d-%s", tgTag, label, userID, uuid.New().String()))
 
 	xuiCl, err := uc.xuiClient.CreateClient(ctx, uc.xuiInboundID, email, userID, label)
@@ -144,10 +177,6 @@ func (uc *connectionUseCase) Create(ctx context.Context, userID, adminID int64, 
 		return nil, fmt.Errorf("create xui client: %w", err)
 	}
 
-	fetchedInbound, err := uc.xuiClient.GetInbound(ctx, uc.xuiInboundID)
-	if err != nil {
-		return nil, fmt.Errorf("get inbound: %w", err)
-	}
 	inbound, vlessBase, err := uc.inboundAndVLESSBase(fetchedInbound)
 	if err != nil {
 		return nil, fmt.Errorf("build vless base: %w", err)
@@ -238,14 +267,6 @@ func (uc *connectionUseCase) SetAdminPaymentInfo(ctx context.Context, adminID in
 
 func (uc *connectionUseCase) GetAdminOwnPaymentInfo(ctx context.Context, adminID int64) (string, error) {
 	return uc.connPayRepo.GetAdminPaymentInfo(ctx, adminID)
-}
-
-func (uc *connectionUseCase) SetConnLastPaidAt(ctx context.Context, connUUID string, userID, adminID int64, paidAt *time.Time) error {
-	return uc.connPayRepo.SetLastPaidAt(ctx, connUUID, userID, adminID, paidAt)
-}
-
-func (uc *connectionUseCase) GetConnsWithDueReminder(ctx context.Context) ([]*domain.ConnPayment, error) {
-	return uc.connPayRepo.GetConnsWithDuePaidReminder(ctx)
 }
 
 // inboundAndVLESSBase parses stream settings from an already-fetched inbound.

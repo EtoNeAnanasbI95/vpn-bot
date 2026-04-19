@@ -33,7 +33,8 @@ type ConnectionUseCase interface {
 	GenerateQR(ctx context.Context, link string) ([]byte, error)
 	// Create creates a client on the Reality inbound in 3x-ui.
 	// adminID is the admin issuing the connection. isFree=true skips payment tracking.
-	Create(ctx context.Context, userID, adminID int64, tgTag, label string, isFree bool) (*domain.Connection, error)
+	// The client label is auto-assigned as the next sequential number (1, 2, 3…) for this user.
+	Create(ctx context.Context, userID, adminID int64, tgTag string, isFree bool) (*domain.Connection, error)
 	// Remove deletes a client from 3x-ui and its payment record.
 	Remove(ctx context.Context, clientUUID string) error
 	// SetEnabled enables or disables a client in 3x-ui.
@@ -52,11 +53,6 @@ type ConnectionUseCase interface {
 	SetAdminPaymentInfo(ctx context.Context, adminID int64, info string) error
 	// GetAdminOwnPaymentInfo returns the payment credentials set by the given admin.
 	GetAdminOwnPaymentInfo(ctx context.Context, adminID int64) (string, error)
-	// SetConnLastPaidAt records (or clears) the last payment date for a connection.
-	// Creates a connection_payments row if one doesn't exist yet.
-	SetConnLastPaidAt(ctx context.Context, connUUID string, userID, adminID int64, paidAt *time.Time) error
-	// GetConnsWithDueReminder returns connections whose last_paid_at was 1+ months ago.
-	GetConnsWithDueReminder(ctx context.Context) ([]*domain.ConnPayment, error)
 }
 
 type PaymentUseCase interface {

@@ -11,6 +11,7 @@ import (
 	"github.com/EtoNeAnanasbI95/vpn-bot/internal/bot/callback"
 	"github.com/EtoNeAnanasbI95/vpn-bot/internal/bot/keyboard"
 	"github.com/EtoNeAnanasbI95/vpn-bot/internal/bot/session"
+	"github.com/EtoNeAnanasbI95/vpn-bot/internal/domain"
 )
 
 // HandleAdminConnUsers shows all users for connection management selection.
@@ -31,7 +32,7 @@ func HandleAdminConnUsers(
 
 	msg := tgbotapi.NewMessage(chatID, "🔗 <b>Управление подключениями</b>\n\nВыберите клиента:")
 	msg.ParseMode = tgbotapi.ModeHTML
-	msg.ReplyMarkup = keyboard.UserListForAction(users, callback.AdmConnList)
+	msg.ReplyMarkup = keyboard.ConnUserListWithAdd(users, callback.AdmConnList)
 	send(bot, msg)
 }
 
@@ -188,7 +189,7 @@ func HandleAdminConnCreateFinal(
 	answerCallback(bot, callbackID, "")
 	send(bot, tgbotapi.NewMessage(chatID, "⏳ Создаю клиента в 3x-ui..."))
 
-	conn, err := uc.Connection.Create(ctx, userID, adminID, tgTag, label, isFree)
+	conn, err := uc.Connection.Create(ctx, userID, adminID, tgTag, isFree)
 	if err != nil {
 		slog.Error("admin: create connection", "admin_id", adminID, "target_user_id", userID, "label", label, "err", err)
 		send(bot, tgbotapi.NewMessage(chatID, fmt.Sprintf("❌ Ошибка: %s", err.Error())))
@@ -216,6 +217,77 @@ func HandleAdminConnCreateFinal(
 	userMsg := tgbotapi.NewMessage(userID, userText)
 	userMsg.ParseMode = tgbotapi.ModeHTML
 	bot.Send(userMsg) //nolint:errcheck
+}
+
+// HandleAdminConnNewUser starts the session for manually adding a user by Telegram ID.
+func HandleAdminConnNewUser(
+	ctx context.Context,
+	bot *tgbotapi.BotAPI,
+	chatID int64,
+	callbackID string,
+	adminID int64,
+	sessions session.Store,
+) {
+	answerCallback(bot, callbackID, "")
+	sessions.Set(adminID, &session.Session{
+		State: session.StateAddManualUser,
+		Data:  map[string]string{},
+	})
+	msg := tgbotapi.NewMessage(chatID, "👤 Введите <b>Telegram ID</b> нового клиента (число):\n\n<i>ID можно узнать через @userinfobot или аналогичные боты.</i>")
+	msg.ParseMode = tgbotapi.ModeHTML
+	msg.ReplyMarkup = keyboard.CancelKeyboard()
+	send(bot, msg)
+}
+
+// HandleSessionAddManualUser processes the Telegram ID typed by the admin,
+// registers the user in the DB and opens their connection list.
+func HandleSessionAddManualUser(
+	ctx context.Context,
+	bot *tgbotapi.BotAPI,
+	msg *tgbotapi.Message,
+	uc *UseCases,
+) {
+	userID, err := strconv.ParseInt(msg.Text, 10, 64)
+	if err != nil || userID <= 0 {
+		reply := tgbotapi.NewMessage(msg.Chat.ID, "❌ Неверный формат. Введите числовой Telegram ID (например <code>123456789</code>):")
+		reply.ParseMode = tgbotapi.ModeHTML
+		reply.ReplyMarkup = keyboard.CancelKeyboard()
+		send(bot, reply)
+		return
+	}
+
+	tu := domain.TelegramUser{ID: userID}
+
+	// Try to resolve name info from Telegram API.
+	chat, err := bot.GetChat(tgbotapi.ChatInfoConfig{ChatConfig: tgbotapi.ChatConfig{ChatID: userID}})
+	if err == nil {
+		tu.Username = chat.UserName
+		tu.FirstName = chat.FirstName
+		tu.LastName = chat.LastName
+	}
+
+	user, _, err := uc.User.RegisterOrGet(ctx, tu)
+	if err != nil {
+		slog.Error("admin: manual add user", "target_id", userID, "err", err)
+		send(bot, tgbotapi.NewMessage(msg.Chat.ID, "❌ Не удалось создать пользователя. Попробуйте ещё раз."))
+		return
+	}
+
+	slog.Info("admin: user manually added", "target_id", userID, "username", user.Username)
+
+	name := user.DisplayName()
+	if user.Username != "" {
+		name += " (@" + user.Username + ")"
+	}
+	notice := fmt.Sprintf("✅ Клиент <b>%s</b> добавлен.", name)
+	if tu.Username == "" && tu.FirstName == "" {
+		notice += "\n\n<i>Имя не удалось определить — оно обновится автоматически, когда клиент напишет боту.</i>"
+	}
+	noticeMsg := tgbotapi.NewMessage(msg.Chat.ID, notice)
+	noticeMsg.ParseMode = tgbotapi.ModeHTML
+	send(bot, noticeMsg)
+
+	HandleAdminConnList(ctx, bot, msg.Chat.ID, "", user.ID, uc)
 }
 
 func refreshConnMessage(ctx context.Context, bot *tgbotapi.BotAPI, chatID int64, messageID int, userID int64, uc *UseCases) {

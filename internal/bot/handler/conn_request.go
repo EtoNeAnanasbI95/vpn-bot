@@ -97,7 +97,7 @@ func HandleAdmReqFree(
 		return
 	}
 
-	conn, err := uc.Connection.Create(ctx, req.UserID, adminID, user.Username, "VPN", true)
+	conn, err := uc.Connection.Create(ctx, req.UserID, adminID, user.Username, true)
 	if err != nil {
 		slog.Error("conn_request: create connection (free)", "user_id", req.UserID, "err", err)
 		// Notify admin of failure
@@ -296,7 +296,7 @@ func HandleAdmReqConfirmPay(
 		return
 	}
 
-	conn, err := uc.Connection.Create(ctx, req.UserID, adminID, user.Username, "VPN", true)
+	conn, err := uc.Connection.Create(ctx, req.UserID, adminID, user.Username, false)
 	if err != nil {
 		slog.Error("conn_request: create connection (paid)", "user_id", req.UserID, "err", err)
 		send(bot, tgbotapi.NewMessage(chatID, fmt.Sprintf("❌ Ошибка при создании подключения: %s", err.Error())))
@@ -305,6 +305,10 @@ func HandleAdmReqConfirmPay(
 
 	if err := uc.ConnRequest.Complete(ctx, reqUUID); err != nil {
 		slog.Warn("conn_request: complete", "uuid", reqUUID, "err", err)
+	}
+
+	if err := uc.Payment.ConfirmPayment(ctx, req.UserID, adminID); err != nil {
+		slog.Warn("conn_request: confirm current month payment", "user_id", req.UserID, "err", err)
 	}
 
 	slog.Info("conn_request: paid connection issued", "user_id", req.UserID, "uuid", conn.UUID, "amount", req.Amount)

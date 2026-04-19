@@ -1,4 +1,4 @@
-name: Build
+name: Build And Deploy
 
 on:
   push:
@@ -6,21 +6,100 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: build-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE_NAME: vpn-bot
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+      image_archive: ${{ steps.meta.outputs.image_archive }}
+      artifact_name: ${{ steps.meta.outputs.artifact_name }}
 
     steps:
       - uses: actions/checkout@v4
 
+      - name: Prepare build metadata
+        id: meta
+        run: |
+          echo "image_tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "image_archive=vpn-bot.tar.gz" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=vpn-bot-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
       - name: Build Docker image
-        run: docker build -t vpn-bot:${{ github.sha }} .
+        run: docker build -t "${IMAGE_NAME}:${{ steps.meta.outputs.image_tag }}" .
 
       - name: Export image to tar
-        run: docker save vpn-bot:${{ github.sha }} | gzip > vpn-bot.tar.gz
+        if: github.event_name == 'push'
+        run: docker save "${IMAGE_NAME}:${{ steps.meta.outputs.image_tag }}" | gzip > "${{ steps.meta.outputs.image_archive }}"
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload image artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
         with:
-          name: vpn-bot-${{ github.sha }}
-          path: vpn-bot.tar.gz
+          name: ${{ steps.meta.outputs.artifact_name }}
+          path: ${{ steps.meta.outputs.image_archive }}
           retention-days: 7
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_IP: ${{ secrets.DEPLOY_IP }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
+      IMAGE_ARCHIVE: ${{ needs.build.outputs.image_archive }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.artifact_name }}
+
+      - name: Configure SSH access
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$DEPLOY_IP" >> ~/.ssh/known_hosts
+
+      - name: Ensure deployment directory exists
+        run: ssh -i ~/.ssh/deploy_key -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_IP" "mkdir -p '$DEPLOY_PATH'"
+
+      - name: Upload release files
+        run: scp -i ~/.ssh/deploy_key -o BatchMode=yes -r "$IMAGE_ARCHIVE" docker-compose.yml assets "$DEPLOY_USER@$DEPLOY_IP:$DEPLOY_PATH/"
+
+      - name: Deploy on production server
+        run: |
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_IP" /bin/sh <<EOF
+          set -eu
+          cd "$DEPLOY_PATH"
+
+          if [ ! -f .env ]; then
+            echo ".env file is missing in $DEPLOY_PATH" >&2
+            exit 1
+          fi
+
+          gunzip -c "$IMAGE_ARCHIVE" | docker load
+          rm -f "$IMAGE_ARCHIVE"
+
+          if grep -q '^VPN_BOT_IMAGE_TAG=' .env; then
+            sed -i "s/^VPN_BOT_IMAGE_TAG=.*/VPN_BOT_IMAGE_TAG=$IMAGE_TAG/" .env
+          else
+            printf '\nVPN_BOT_IMAGE_TAG=%s\n' "$IMAGE_TAG" >> .env
+          fi
+
+          docker compose up -d --remove-orphans
+          EOF

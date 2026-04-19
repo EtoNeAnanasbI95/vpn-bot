@@ -1,6 +1,6 @@
 services:
   bot:
-    image: vpn-bot:latest
+    image: vpn-bot:${VPN_BOT_IMAGE_TAG:-latest}
     restart: unless-stopped
     env_file: .env
     volumes:

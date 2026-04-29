@@ -78,6 +78,7 @@ func (uc *connectionUseCase) ListForUser(ctx context.Context, userID int64) ([]*
 		if pay, err := uc.connPayRepo.GetByUUID(ctx, cl.ID); err == nil {
 			conn.PayStatus = pay.Status
 			conn.AdminID = pay.AdminID
+			conn.LastPaidAt = pay.LastPaidAt
 		}
 		conns = append(conns, conn)
 	}
@@ -267,6 +268,14 @@ func (uc *connectionUseCase) SetAdminPaymentInfo(ctx context.Context, adminID in
 
 func (uc *connectionUseCase) GetAdminOwnPaymentInfo(ctx context.Context, adminID int64) (string, error) {
 	return uc.connPayRepo.GetAdminPaymentInfo(ctx, adminID)
+}
+
+func (uc *connectionUseCase) SetConnLastPaidAt(ctx context.Context, connUUID string, nextPayDate time.Time) error {
+	return uc.connPayRepo.SetLastPaidAt(ctx, connUUID, nextPayDate)
+}
+
+func (uc *connectionUseCase) GetConnsWithDueReminder(ctx context.Context) ([]*domain.ConnPayment, error) {
+	return uc.connPayRepo.GetConnsWithDuePaidReminder(ctx)
 }
 
 // inboundAndVLESSBase parses stream settings from an already-fetched inbound.

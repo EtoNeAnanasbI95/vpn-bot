@@ -181,8 +181,66 @@ func (s *Scheduler) sendConnPaymentReminders(ctx context.Context) {
 	}
 }
 
+func (s *Scheduler) sendPayDateReminders(ctx context.Context) {
+	due, err := s.connUC.GetConnsWithDueReminder(ctx)
+	if err != nil {
+		slog.Error("scheduler: get pay-date connections", "err", err)
+		return
+	}
+	if len(due) == 0 {
+		return
+	}
+
+	slog.Info("scheduler: sending pay-date reminders", "count", len(due))
+
+	for _, pay := range due {
+		if s.isAdmin(pay.UserID) {
+			continue
+		}
+
+		// Notify user (include admin payment requisites if available).
+		userText := "📅 <b>Напоминание об оплате VPN</b>\n\nПришло время ежемесячной оплаты."
+		if info, err := s.connUC.GetAdminPaymentInfo(ctx, pay.UUID); err == nil && info != "" {
+			userText += "\n\n💳 <b>Реквизиты для оплаты:</b>\n" + info
+		}
+		userMsg := tgbotapi.NewMessage(pay.UserID, userText)
+		userMsg.ParseMode = tgbotapi.ModeHTML
+		if _, err := s.bot.Send(userMsg); err != nil {
+			slog.Warn("scheduler: notify user (pay-date)", "user_id", pay.UserID, "err", err)
+		}
+
+		// Notify admin.
+		if pay.AdminID != 0 {
+			user, err := s.userUC.GetUser(ctx, pay.UserID)
+			if err == nil {
+				name := user.DisplayName()
+				if user.Username != "" {
+					name += " (@" + user.Username + ")"
+				}
+				adminMsg := tgbotapi.NewMessage(pay.AdminID, fmt.Sprintf(
+					"📅 <b>Дата оплаты</b>\n\nПришло время оплаты для клиента <b>%s</b>.",
+					name,
+				))
+				adminMsg.ParseMode = tgbotapi.ModeHTML
+				if _, err := s.bot.Send(adminMsg); err != nil {
+					slog.Warn("scheduler: notify admin (pay-date)", "admin_id", pay.AdminID, "err", err)
+				}
+			}
+		}
+
+		// Advance to next month so the reminder repeats monthly.
+		if pay.LastPaidAt != nil {
+			next := pay.LastPaidAt.AddDate(0, 1, 0)
+			if err := s.connUC.SetConnLastPaidAt(ctx, pay.UUID, next); err != nil {
+				slog.Warn("scheduler: advance pay-date", "uuid", pay.UUID, "err", err)
+			}
+		}
+	}
+}
+
 func (s *Scheduler) sendReminders() {
 	ctx := context.Background()
+	s.sendPayDateReminders(ctx)
 	s.sendConnPaymentReminders(ctx)
 
 	unpaid, err := s.paymentUC.GetUnpaidUsers(ctx)

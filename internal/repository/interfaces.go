@@ -32,6 +32,11 @@ type ConnectionPaymentRepository interface {
 	SetStatus(ctx context.Context, uuid string, status domain.ConnPayStatus) error
 	GetAdminPaymentInfo(ctx context.Context, adminID int64) (string, error)
 	SetAdminPaymentInfo(ctx context.Context, adminID int64, info string) error
+	// SetLastPaidAt stores the next scheduled pay-date for a connection.
+	SetLastPaidAt(ctx context.Context, uuid string, paidAt time.Time) error
+	// GetConnsWithDuePaidReminder returns connections whose last_paid_at has arrived or passed,
+	// excluding free friends.
+	GetConnsWithDuePaidReminder(ctx context.Context) ([]*domain.ConnPayment, error)
 }
 
 type ConnRequestRepository interface {

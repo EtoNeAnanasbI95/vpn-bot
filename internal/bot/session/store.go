@@ -16,6 +16,7 @@ const (
 	StateBroadcastSelect    State = "bcast_sel"           // admin is picking users in multi-select
 	StateBroadcastSelected  State = "bcast_sel_text"      // waiting for message text to send to selected users
 	StateAdmReqCustomPrice  State = "adm_req_price"       // admin is typing a custom price for a connection request
+	StateSetPayDate         State = "set_pay_date"        // admin is typing a day of month for pay-date reminder
 )
 
 // Data keys stored in Session.Data.
@@ -28,6 +29,8 @@ const (
 	KeyBcastSelectedIDs   = "bcast_ids"      // comma-separated selected user IDs
 	KeyBcastMsgID         = "bcast_msid"     // message ID of the multi-select keyboard to edit
 	KeyConnReqUUID        = "conn_req_uuid"  // UUID of the connection request being processed
+	KeyPayDateConnUUID    = "pd_conn_uuid"  // UUID of the connection being assigned a pay date
+	KeyPayDateUserID      = "pd_user_id"   // owner user ID for the pay-date flow
 )
 
 // Session holds transient per-user state between handler invocations.

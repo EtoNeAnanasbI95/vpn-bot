@@ -78,6 +78,30 @@ func (r *connPayRepo) SetAdminPaymentInfo(ctx context.Context, adminID int64, in
 	return err
 }
 
+func (r *connPayRepo) SetLastPaidAt(ctx context.Context, uuid string, paidAt time.Time) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE connection_payments SET last_paid_at = ? WHERE uuid = ?`,
+		paidAt.UTC().Format("2006-01-02 15:04:05"), uuid)
+	return err
+}
+
+func (r *connPayRepo) GetConnsWithDuePaidReminder(ctx context.Context) ([]*domain.ConnPayment, error) {
+	now := time.Now().UTC().Format("2006-01-02 15:04:05")
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT cp.uuid, cp.user_id, cp.admin_id, cp.status, cp.last_paid_at, cp.created_at
+		FROM connection_payments cp
+		JOIN users u ON u.id = cp.user_id
+		WHERE cp.last_paid_at IS NOT NULL
+		  AND cp.last_paid_at <= ?
+		  AND u.is_free_friend = 0
+	`, now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanConnPays(rows)
+}
+
 func scanConnPay(row *sql.Row) (*domain.ConnPayment, error) {
 	var p domain.ConnPayment
 	var status, createdAt string

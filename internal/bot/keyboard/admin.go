@@ -23,6 +23,9 @@ func AdminPanel() tgbotapi.InlineKeyboardMarkup {
 			tgbotapi.NewInlineKeyboardButtonData("🔗 Подключения", callback.ActionAdmConnUsers),
 		),
 		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("📅 Даты оплат", callback.ActionAdmPayDateUsers),
+		),
+		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("💚 Друзья", callback.ActionAdmFreeFriendList),
 		),
 		tgbotapi.NewInlineKeyboardRow(
@@ -301,4 +304,29 @@ func ConnRequestConfirmPayButton(reqUUID string) tgbotapi.InlineKeyboardMarkup {
 		),
 	)
 }
+
+// PayDateUserList shows all users for pay-date assignment.
+func PayDateUserList(users []*domain.User) tgbotapi.InlineKeyboardMarkup {
+	return UserListForAction(users, callback.AdmPayDateConns)
+}
+
+// PayDateConnList shows connections for a user with their current pay dates.
+func PayDateConnList(userID int64, conns []*domain.Connection) tgbotapi.InlineKeyboardMarkup {
+	var rows [][]tgbotapi.InlineKeyboardButton
+	for _, c := range conns {
+		dateStr := "не задана"
+		if c.LastPaidAt != nil {
+			dateStr = c.LastPaidAt.Format("02.01.2006")
+		}
+		label := fmt.Sprintf("📅 %s — %s", c.Label, dateStr)
+		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(label, callback.AdmPayDateSet(c.UUID)),
+		))
+	}
+	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("← Назад", callback.ActionAdmPayDateUsers),
+	))
+	return tgbotapi.NewInlineKeyboardMarkup(rows...)
+}
+
 

@@ -53,6 +53,10 @@ type ConnectionUseCase interface {
 	SetAdminPaymentInfo(ctx context.Context, adminID int64, info string) error
 	// GetAdminOwnPaymentInfo returns the payment credentials set by the given admin.
 	GetAdminOwnPaymentInfo(ctx context.Context, adminID int64) (string, error)
+	// SetConnLastPaidAt stores the next scheduled pay-date reminder for a connection.
+	SetConnLastPaidAt(ctx context.Context, connUUID string, nextPayDate time.Time) error
+	// GetConnsWithDueReminder returns connections whose pay-date has arrived or passed.
+	GetConnsWithDueReminder(ctx context.Context) ([]*domain.ConnPayment, error)
 }
 
 type PaymentUseCase interface {

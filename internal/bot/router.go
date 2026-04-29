@@ -280,6 +280,22 @@ func (r *Router) handleCallback(ctx context.Context, q *tgbotapi.CallbackQuery) 
 	case callback.ActionAdmConnNewUser:
 		handler.HandleAdminConnNewUser(ctx, r.bot, chatID, q.ID, q.From.ID, r.sessions)
 
+	case callback.ActionAdmPayDateUsers:
+		handler.HandleAdminPayDateUsers(ctx, r.bot, chatID, q.ID, r.uc)
+
+	case callback.ActionAdmPayDateConns:
+		if len(parts) < 2 {
+			break
+		}
+		uid, _ := strconv.ParseInt(parts[1], 10, 64)
+		handler.HandleAdminPayDateConns(ctx, r.bot, chatID, q.ID, uid, r.uc)
+
+	case callback.ActionAdmPayDateSet:
+		if len(parts) < 2 {
+			break
+		}
+		handler.HandleAdminPayDateSetStart(ctx, r.bot, chatID, q.ID, q.From.ID, parts[1], r.sessions, r.uc)
+
 	// ── Connection request flow ──────────────────────────────────────────────
 	case callback.ActionAdmReqFree:
 		if len(parts) < 2 {
@@ -345,6 +361,8 @@ func (r *Router) handleCallback(ctx context.Context, q *tgbotapi.CallbackQuery) 
 			handler.HandleAdminConnUsers(ctx, r.bot, chatID, "", r.uc)
 		case session.StateAdmReqCustomPrice:
 			r.bot.Send(tgbotapi.NewMessage(chatID, "❌ Ввод цены отменён.")) //nolint:errcheck
+		case session.StateSetPayDate:
+			handler.HandleAdminPayDateUsers(ctx, r.bot, chatID, "", r.uc)
 		default:
 			handler.HandleAdminPanel(ctx, r.bot, chatID)
 		}

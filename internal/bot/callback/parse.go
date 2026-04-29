@@ -40,6 +40,9 @@ const (
 	ActionAdmFreeFriendToggle = "adm_ff_toggle" // toggle free-friend for a user
 	ActionAdmConnNewUser      = "adm_conn_new"  // manually add a new user by Telegram ID
 	ActionAdmCancel           = "adm_cancel"    // cancel active session and navigate back
+	ActionAdmPayDateUsers = "adm_pd_users" // show user list for pay-date assignment
+	ActionAdmPayDateConns = "adm_pd_conns" // show connection list for a user
+	ActionAdmPayDateSet   = "adm_pd_set"   // start day-of-month input for a connection
 	ActionMainMenu           = "main_menu"
 
 	// Connection request flow (user-initiated).
@@ -105,3 +108,5 @@ func AdmReqPriceBase(reqUUID string) string   { return Encode(ActionAdmReqPriceB
 func AdmReqPriceCustom(reqUUID string) string { return Encode(ActionAdmReqPriceCustom, reqUUID) }
 func ConnReqCheckPay(reqUUID string) string   { return Encode(ActionConnReqCheckPay, reqUUID) }
 func AdmReqConfirmPay(reqUUID string) string  { return Encode(ActionAdmReqConfirmPay, reqUUID) }
+func AdmPayDateConns(userID int64) string     { return fmt.Sprintf("%s%s%d", ActionAdmPayDateConns, sep, userID) }
+func AdmPayDateSet(uuid string) string        { return Encode(ActionAdmPayDateSet, uuid) }
